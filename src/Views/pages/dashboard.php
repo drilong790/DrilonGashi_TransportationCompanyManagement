@@ -13,14 +13,6 @@
     </div>
 </div>
 
-<?php if ($databaseError !== null): ?>
-    <div class="database-error" role="alert">
-        <strong>Databaza nuk është e disponueshme</strong>
-        <p><?= htmlspecialchars($databaseError, ENT_QUOTES, 'UTF-8') ?></p>
-        <span>Detajet teknike janë regjistruar në log-un e PHP-së.</span>
-    </div>
-<?php endif; ?>
-
 <div class="section-heading">
     <div>
         <p class="eyebrow">HAPËSIRA E PUNËS</p>
@@ -72,6 +64,6 @@
     <span class="progress-mark" aria-hidden="true">✓</span>
     <div>
         <strong>Lidhja me databazën është aktive</strong>
-        <p>Paneli shfaq numrin e regjistrimeve; faqet e moduleve dhe veprimet e tyre do të lidhen në hapat pasues.</p>
+        <p>Paneli tregon regjistrimet dhe modulet janë të mbrojtura sipas rolit të përdoruesit të kyçur.</p>
     </div>
 </div>

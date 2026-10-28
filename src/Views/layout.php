@@ -19,13 +19,28 @@
                     <p class="eyebrow">MENAXHIMI I TRANSPORTIT</p>
                     <h1><?= htmlspecialchars($page['title'], ENT_QUOTES, 'UTF-8') ?></h1>
                     <p class="page-description"><?= htmlspecialchars($page['description'], ENT_QUOTES, 'UTF-8') ?></p>
+                    <?php if ($user !== null): ?>
+                        <p class="signed-in-user">
+                            <?= htmlspecialchars($user['full_name'], ENT_QUOTES, 'UTF-8') ?>
+                            · <?= $user['role'] === 'ADMIN' ? 'Administrator' : 'Dispeçer' ?>
+                        </p>
+                    <?php endif; ?>
                 </div>
                 <span class="environment-badge"><span aria-hidden="true"></span> Ambient lokal</span>
             </header>
 
             <section class="page-content" aria-labelledby="page-content-heading">
                 <h2 id="page-content-heading" class="visually-hidden">Përmbajtja e faqes</h2>
-                <?php require $viewFile; ?>
+                <?php if ($databaseError !== null): ?>
+                    <div class="database-error" role="alert">
+                        <strong>Shërbimi nuk është i disponueshëm</strong>
+                        <p><?= htmlspecialchars($databaseError, ENT_QUOTES, 'UTF-8') ?></p>
+                        <span>Detajet teknike janë regjistruar në log-un e PHP-së.</span>
+                    </div>
+                <?php endif; ?>
+                <?php if ($databaseError === null && ($moduleData !== null || in_array($pageKey, ['dashboard', 'not_found', 'add-admin'], true))): ?>
+                    <?php require $viewFile; ?>
+                <?php endif; ?>
             </section>
 
             <footer class="footer">

@@ -6,9 +6,9 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
 ?>
 <div class="module-toolbar">
     <p><?= $escape($module['description']) ?></p>
-    <?php if ($formAction === 'list'): ?>
+    <?php if ($formAction === 'list' && $moduleData['canManage']): ?>
         <a class="button button-primary" href="?page=<?= urlencode($pageKey) ?>&amp;action=create">Shto <?= $escape($module['singular']) ?></a>
-    <?php else: ?>
+    <?php elseif ($formAction !== 'list'): ?>
         <a class="button button-secondary" href="?page=<?= urlencode($pageKey) ?>">Kthehu te lista</a>
     <?php endif; ?>
 </div>
@@ -98,7 +98,9 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
                             <?php foreach ($module['columns'] as $label): ?>
                                 <th scope="col"><?= $escape($label) ?></th>
                             <?php endforeach; ?>
-                            <th scope="col">Veprimet</th>
+                            <?php if ($moduleData['canManage']): ?>
+                                <th scope="col">Veprimet</th>
+                            <?php endif; ?>
                         </tr>
                     </thead>
                     <tbody>
@@ -107,6 +109,7 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
                                 <?php foreach ($module['columns'] as $column => $label): ?>
                                     <td><?= $escape($row[$column] ?? '') ?></td>
                                 <?php endforeach; ?>
+                                <?php if ($moduleData['canManage']): ?>
                                 <td>
                                     <div class="row-actions">
                                         <a class="text-action" href="?page=<?= urlencode($pageKey) ?>&amp;action=edit&amp;id=<?= (int) $row['id'] ?>">Ndrysho</a>
@@ -118,6 +121,7 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
                                         </form>
                                     </div>
                                 </td>
+                                <?php endif; ?>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>

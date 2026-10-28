@@ -4,7 +4,7 @@ Aplikacion PHP për menaxhimin e një kompanie transporti, me panel përmbledhë
 
 ## Databaza
 
-Paneli dhe modulet përdorin PDO për t'u lidhur me MySQL. Importo [database/schema.sql](database/schema.sql). Për të pasur përdorues që mund të zgjidhen si krijues i transportit, importo edhe [database/sample_data.sql](database/sample_data.sql) ose shto vetë një përdorues aktiv në tabelën `users`. Udhëzimet gjenden te [database/README.md](database/README.md).
+Paneli dhe modulet përdorin PDO për t'u lidhur me MySQL. Importo [database/schema.sql](database/schema.sql). Mund të importosh edhe [database/sample_data.sql](database/sample_data.sql) për të dhëna demo; krijo llogaritë e hyrjes me skriptin `bin/create-user.php`.
 
 Lidhja përdor këto variabla ambienti; parazgjedhjet janë të përshtatshme për një instalim lokal XAMPP me `root` dhe pa fjalëkalim:
 
@@ -34,7 +34,11 @@ Pastaj hape [http://localhost:8000](http://localhost:8000) në shfletues.
 public/
   index.php                 Hyrja e aplikacionit dhe zgjedhja e faqes
   assets/app.css            Stilet dhe paraqitja responsive
+bin/
+  create-user.php           Krijon llogari me fjalëkalim të hash-uar
 src/
+  Auth/
+    Authentication.php      Hyrja, sesioni dhe dalja nga sistemi
   Database/
     Connection.php          Lidhja e përbashkët me MySQL përmes PDO
   Modules/
@@ -43,9 +47,12 @@ src/
     components/
       navigation.php        Navigimi i përbashkët i aplikacionit
     pages/
+      add-admin.php          Forma për krijimin e administratorëve (vetëm admin)
       dashboard.php         Paneli kryesor dhe lidhjet te modulet
+      login.php              Hyrja e përdoruesit
       module.php             Pamja e përbashkët për listat dhe formularët CRUD
       not-found.php          Pamja për adresa të panjohura
+      register.php           Regjistrimi publik si dispeçer
     layout.php              Struktura e përbashkët e faqeve
 database/
   schema.sql                Struktura e databazës MySQL
@@ -64,4 +71,16 @@ Përdor menynë anësore ose kartat në panelin kryesor për të hapur:
 
 Modulet **Klientët**, **Shoferët**, **Automjetet** dhe **Transportet** mbështesin listimin, shtimin, ndryshimin dhe fshirjen e regjistrimeve. Formularët validohen në server; kërkesat përdorin PDO, parametrizim dhe token CSRF. Fshirja e klientit parandalohet nëse ka transporte të lidhura. Transporti lidhet me klientin, përdoruesin që e regjistroi dhe shoferin/automjetin (opsionalë).
 
-> **Shënim:** Hyrja/autentikimi i përdoruesve nuk është implementuar ende. Përdore lokalisht ose në mjedis të besuar; mos e ekspozo aplikacionin në internet para se të shtohet autentikimi dhe autorizimi.
+## Hyrja dhe përdoruesit
+
+Hyrja përdor email dhe fjalëkalim me hash `password_hash()`. Përdoruesit joaktivë nuk mund të hyjnë. Regjistrimi publik krijon vetëm llogari `DISPATCHER`. Administratori i kyçur mund të krijojë administratorë të tjerë përmes opsionit **Shto administrator** në menynë anësore; roli caktohet nga serveri. Administratori mund të menaxhojë të gjitha modulet; dispeçeri mund t’i shohë klientët, shoferët dhe automjetet dhe mund të menaxhojë transportet. Krijuesi i një transporti caktohet automatikisht nga llogaria aktive.
+
+Për krijimin e llogarisë së parë, pasi të jetë importuar skema, hape terminalin në direktorinë e projektit dhe nis:
+
+```bash
+/Applications/XAMPP/xamppfiles/bin/php bin/create-user.php
+```
+
+Skripti kërkon emrin, email-in, rolin dhe fjalëkalimin (fjalëkalimi nuk shfaqet në terminal dhe duhet të ketë të paktën 12 karaktere). Krijo fillimisht një llogari `ADMIN`. Pastaj admini mund të përdorë opsionin e menusë për të krijuar adminë të tjerë. Përdor `http://localhost:8000/?page=register` për regjistrimin e dispeçerëve dhe `http://localhost:8000/?page=login` për hyrjen. Mos i ekspozo kredencialet në dokumentacion ose Git.
+
+Sesioni përdor cookie `HttpOnly`, `SameSite=Lax`, rotacion të ID-së pas hyrjes dhe token CSRF për hyrje/dalje dhe veprimet e moduleve. Për përdorim publik duhen gjithashtu HTTPS, konfigurim i sigurt i serverit dhe kontrolle të rregullta të sigurisë.

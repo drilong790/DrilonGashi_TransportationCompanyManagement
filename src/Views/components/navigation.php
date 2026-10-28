@@ -21,10 +21,31 @@
                 </a>
             </li>
         <?php endforeach; ?>
+        <?php if ($user['role'] === 'ADMIN'): ?>
+            <li>
+                <a
+                    class="navigation-link<?= $pageKey === 'add-admin' ? ' is-active' : '' ?>"
+                    href="?page=add-admin"
+                    <?= $pageKey === 'add-admin' ? 'aria-current="page"' : '' ?>
+                >
+                    <span class="navigation-indicator" aria-hidden="true"></span>
+                    <span>Shto administrator</span>
+                </a>
+            </li>
+        <?php endif; ?>
     </ul>
 </nav>
 
 <div class="sidebar-note">
-    <span class="sidebar-note-icon" aria-hidden="true">i</span>
-    <p>Menaxho klientët, shoferët, automjetet dhe transportet nga modulet përkatëse.</p>
+    <div class="session-user">
+        <strong><?= htmlspecialchars($user['full_name'], ENT_QUOTES, 'UTF-8') ?></strong>
+        <span><?= $user['role'] === 'ADMIN' ? 'Administrator' : 'Dispeçer' ?></span>
+        <?php if ($user['role'] === 'DISPATCHER'): ?>
+            <span>Modulet bazë janë vetëm për shikim.</span>
+        <?php endif; ?>
+        <form method="post" action="?page=logout">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+            <button type="submit">Dil nga llogaria</button>
+        </form>
+    </div>
 </div>

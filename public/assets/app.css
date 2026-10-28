@@ -174,6 +174,41 @@ a {
     line-height: 1.55;
 }
 
+.session-user {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.session-user strong {
+    overflow: hidden;
+    color: #43516a;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.session-user > span {
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.session-user form {
+    margin-top: 5px;
+}
+
+.session-user button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--blue);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
 .main-content {
     display: flex;
     width: calc(100% - 258px);
@@ -212,6 +247,78 @@ p {
     margin: 8px 0 0;
     color: var(--muted);
     font-size: 13px;
+}
+
+.signed-in-user {
+    margin: 8px 0 0;
+    color: #66748b;
+    font-size: 11px;
+}
+
+.login-page {
+    display: grid;
+    min-height: 100vh;
+    place-items: center;
+    padding: 24px;
+}
+
+.login-card {
+    width: min(100%, 420px);
+    padding: 32px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 18px 50px #26395c0d;
+}
+
+.login-brand {
+    padding: 0;
+    margin-bottom: 38px;
+}
+
+.login-card > .eyebrow {
+    margin: 0 0 8px;
+}
+
+.login-card h1 {
+    margin: 0;
+    font-size: 26px;
+    letter-spacing: -0.04em;
+}
+
+.login-description {
+    margin: 8px 0 22px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.login-form {
+    display: grid;
+    gap: 16px;
+}
+
+.login-submit {
+    width: 100%;
+    min-height: 43px;
+    margin-top: 4px;
+}
+
+.auth-switch {
+    margin: 20px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+}
+
+.auth-switch a {
+    color: var(--blue);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.auth-switch a:hover {
+    text-decoration: underline;
 }
 
 .environment-badge,

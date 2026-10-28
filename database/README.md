@@ -50,16 +50,16 @@ mysql -u root -p transport_management < C:/xampp/htdocs/projekti/database/sample
 
 ## 5. Kontrollat e nevojshme në PHP para se të ruhet një transport
 
-Para se të ruhet një transport, PHP duhet të kontrollojë:
+Para se të ruhet një transport, PHP kontrollon:
 
 - `customer_id` ekziston dhe është i vlefshëm.
-- `created_by` ekziston dhe është përdorues i aktiv.
+- `created_by` vendoset automatikisht nga sesioni i përdoruesit aktiv.
 - `driver_id`, nëse është dhënë, ekziston dhe është `is_active = 1`.
 - `vehicle_id`, nëse është dhënë, ekziston dhe është `is_active = 1`.
 - Adresat e nisjes dhe destinacionit nuk janë bosh.
 - `scheduled_date` është e formatuar saktë dhe jo në të kaluarën (nëse kjo është kërkuar nga logjika e biznesit).
 - `status` duhet të jetë një nga: `PLANNED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`.
-- Nqs `driver_id` ose `vehicle_id` janë null, sistemi duhet ta lejojë transportin e planifikuar pa qënë ende caktuar.
+- Nëse `driver_id` ose `vehicle_id` janë null, transporti mund të ruhet pa caktim.
 
 Për shembull, kontrolli për shoferin dhe automjetin aktiv:
 
@@ -85,13 +85,7 @@ if ($vehicle && (int)$vehicle['is_active'] !== 1) {
 
 ## 6. Fjalëkalimi i përdoruesve
 
-Mos ruaj fjalëkalime në tekst të thjeshtë. Në PHP, llogaria fillestare duhet të krijohet me `password_hash()`:
-
-```php
-$passwordHash = password_hash('Admin@123', PASSWORD_DEFAULT);
-```
-
-Pastaj ai hash ruhet në kolumnën `password_hash` e tabelës `users`.
+Mos ruaj fjalëkalime në tekst të thjeshtë. Pas importimit të `schema.sql`, përdor skriptin interaktiv `bin/create-user.php` për të krijuar administratorin e parë. Ai ruan vetëm hash-in e krijuar me `password_hash()` dhe kërkon rol `ADMIN` ose `DISPATCHER`. Skripti kërkon terminal interaktiv dhe fsheh fjalëkalimin gjatë futjes. Vizitorët mund të regjistrohen te `?page=register`, por regjistrimi publik krijon vetëm llogari `DISPATCHER`. Pasi të hyjë, administratori mund të krijojë administratorë të tjerë nga menyja **Shto administrator**.
 
 ## 7. Viktima e tabelave dhe constraint-ave
 
@@ -115,4 +109,4 @@ use App\Database\Connection;
 $pdo = Connection::create();
 ```
 
-Lidhja përdoret nga paneli dhe modulet CRUD për klientë, shoferë, automjete dhe transporte. Për XAMPP me kredenciale të parazgjedhura, pas importimit të skemës mund të nisesh aplikacionin me `php -S localhost:8000 -t public`. Kërkohet PHP me shtesën `pdo_mysql` aktive.
+Lidhja përdoret nga paneli, hyrja dhe modulet CRUD për klientë, shoferë, automjete dhe transporte. Për XAMPP me kredenciale të parazgjedhura, pas importimit të skemës mund të nisesh aplikacionin me `php -S localhost:8000 -t public`. Kërkohet PHP me shtesat `pdo_mysql` dhe `mbstring` aktive.

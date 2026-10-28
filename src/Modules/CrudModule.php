@@ -90,13 +90,13 @@ final class CrudModule
                 'destination_address' => 'Destinacioni',
                 'scheduled_date' => 'Data e planifikuar',
                 'status_label' => 'Statusi',
+                'created_by_name' => 'Regjistruar nga',
             ],
-            'list_sql' => "SELECT t.id, c.company_name AS customer_name, t.pickup_address, t.destination_address, t.scheduled_date, CASE t.status WHEN 'PLANNED' THEN 'Planifikuar' WHEN 'IN_PROGRESS' THEN 'Në proces' WHEN 'COMPLETED' THEN 'Përfunduar' ELSE 'Anuluar' END AS status_label FROM transports t JOIN customers c ON c.id = t.customer_id ORDER BY t.scheduled_date DESC, t.id DESC LIMIT 250",
+            'list_sql' => "SELECT t.id, c.company_name AS customer_name, t.pickup_address, t.destination_address, t.scheduled_date, CASE t.status WHEN 'PLANNED' THEN 'Planifikuar' WHEN 'IN_PROGRESS' THEN 'Në proces' WHEN 'COMPLETED' THEN 'Përfunduar' ELSE 'Anuluar' END AS status_label, u.full_name AS created_by_name FROM transports t JOIN customers c ON c.id = t.customer_id JOIN users u ON u.id = t.created_by ORDER BY t.scheduled_date DESC, t.id DESC LIMIT 250",
             'fields' => [
                 'customer_id' => ['label' => 'Klienti', 'type' => 'select', 'required' => true, 'source' => 'customers'],
                 'driver_id' => ['label' => 'Shoferi (opsional)', 'type' => 'select', 'required' => false, 'source' => 'drivers'],
                 'vehicle_id' => ['label' => 'Automjeti (opsional)', 'type' => 'select', 'required' => false, 'source' => 'vehicles'],
-                'created_by' => ['label' => 'Regjistruar nga', 'type' => 'select', 'required' => true, 'source' => 'users'],
                 'pickup_address' => ['label' => 'Adresa e nisjes', 'type' => 'text', 'required' => true, 'max' => 255],
                 'destination_address' => ['label' => 'Adresa e destinacionit', 'type' => 'text', 'required' => true, 'max' => 255],
                 'cargo_description' => ['label' => 'Përshkrimi i ngarkesës', 'type' => 'textarea', 'required' => true],
@@ -116,9 +116,10 @@ final class CrudModule
         ],
     ];
 
-    public static function handle(PDO $pdo, string $key): array
+    public static function handle(PDO $pdo, string $key, int $userId, string $role): array
     {
         $module = self::MODULES[$key];
+        $canManage = $role === 'ADMIN' || $key === 'transports';
         $action = $_GET['action'] ?? 'list';
         $id = self::positiveId($_GET['id'] ?? null);
         $errors = [];
@@ -134,7 +135,11 @@ final class CrudModule
             $action = is_string($_POST['action'] ?? null) ? $_POST['action'] : '';
             $postedId = self::positiveId($_POST['id'] ?? null);
 
-            if (!self::validCsrfToken($_POST['csrf_token'] ?? null)) {
+            if (!$canManage) {
+                http_response_code(403);
+                $errors[] = 'Dispeçeri mund t’i shohë këto të dhëna, por vetëm administratori mund t’i ndryshojë.';
+                $action = 'list';
+            } elseif (!self::validCsrfToken($_POST['csrf_token'] ?? null)) {
                 http_response_code(400);
                 $errors[] = 'Kërkesa nuk mund të verifikohej. Rifresko faqen dhe provo përsëri.';
                 $action = in_array($action, ['create', 'update'], true) ? ($postedId === null ? 'create' : 'edit') : 'list';
@@ -178,7 +183,7 @@ final class CrudModule
                         http_response_code(422);
                     } else {
                         try {
-                            self::save($pdo, $module, $formValues, $action, $id);
+                            self::save($pdo, $module, $formValues, $action, $id, $userId);
                             $_SESSION['flash_message'] = $isUpdate
                                 ? "{$module['title']} u përditësua me sukses."
                                 : "{$module['title']} u shtua me sukses.";
@@ -195,6 +200,12 @@ final class CrudModule
                 $errors[] = 'Veprimi i kërkuar nuk është i vlefshëm.';
                 $action = 'list';
             }
+        }
+
+        if (!$canManage && in_array($action, ['create', 'edit'], true)) {
+            http_response_code(403);
+            $errors[] = 'Vetëm administratori mund të ndryshojë këtë modul.';
+            $action = 'list';
         }
 
         $record = null;
@@ -234,6 +245,7 @@ final class CrudModule
             'message' => $message,
             'values' => $formValues,
             'csrfToken' => self::csrfToken(),
+            'canManage' => $canManage,
         ];
     }
 
@@ -346,11 +358,6 @@ final class CrudModule
                         "SELECT id AS value, CONCAT(plate_number, ' — ', vehicle_type) AS label FROM vehicles WHERE is_active = 1 OR id = :selected ORDER BY plate_number"
                     );
                     $statement->execute(['selected' => $record['vehicle_id'] ?? 0]);
-                } else {
-                    $statement = $pdo->prepare(
-                        'SELECT id AS value, full_name AS label FROM users WHERE is_active = 1 OR id = :selected ORDER BY full_name'
-                    );
-                    $statement->execute(['selected' => $record['created_by'] ?? 0]);
                 }
                 $options[$name] = array_map(
                     static fn (array $row): array => ['value' => (string) $row['value'], 'label' => $row['label']],
@@ -374,10 +381,14 @@ final class CrudModule
         return $values;
     }
 
-    private static function save(PDO $pdo, array $module, array $values, string $action, ?int $id): void
+    private static function save(PDO $pdo, array $module, array $values, string $action, ?int $id, int $userId): void
     {
         $columns = array_keys($module['fields']);
         if ($action === 'create') {
+            if ($module['table'] === 'transports') {
+                $columns[] = 'created_by';
+                $values['created_by'] = $userId;
+            }
             $columnSql = implode(', ', $columns);
             $placeholderSql = implode(', ', array_map(static fn (string $column): string => ':' . $column, $columns));
             $statement = $pdo->prepare("INSERT INTO {$module['table']} ({$columnSql}) VALUES ({$placeholderSql})");
