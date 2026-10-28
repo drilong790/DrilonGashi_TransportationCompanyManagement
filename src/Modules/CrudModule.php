@@ -126,6 +126,15 @@ final class CrudModule
         $formValues = [];
         $message = $_SESSION['flash_message'] ?? null;
         unset($_SESSION['flash_message']);
+        $filters = [
+            'search' => '',
+            'status' => '',
+            'date_from' => '',
+            'date_to' => '',
+            'customer_id' => '',
+            'driver_id' => '',
+        ];
+        $filterOptions = ['customers' => [], 'drivers' => []];
 
         if (!is_string($action) || !in_array($action, ['list', 'create', 'edit'], true)) {
             $action = 'list';
@@ -231,7 +240,23 @@ final class CrudModule
         if (in_array($action, ['create', 'edit'], true)) {
             $options = self::fieldOptions($pdo, $module['fields'], $record);
         } else {
-            $rows = $pdo->query($module['list_sql'])->fetchAll();
+            if ($key === 'transports') {
+                $filterErrorCount = count($errors);
+                $filters = self::transportFilters($pdo, $errors);
+                $filterOptions = [
+                    'customers' => $pdo->query('SELECT id, company_name FROM customers ORDER BY company_name')->fetchAll(),
+                    'drivers' => $pdo->query('SELECT id, full_name FROM drivers ORDER BY full_name')->fetchAll(),
+                ];
+                if (count($errors) === $filterErrorCount) {
+                    $statement = self::transportListStatement($pdo, $filters);
+                    if (($_GET['export'] ?? null) === 'csv' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+                        self::exportTransportsCsv($statement);
+                    }
+                    $rows = $statement->fetchAll();
+                }
+            } else {
+                $rows = $pdo->query($module['list_sql'])->fetchAll();
+            }
         }
 
         return [
@@ -246,7 +271,161 @@ final class CrudModule
             'values' => $formValues,
             'csrfToken' => self::csrfToken(),
             'canManage' => $canManage,
+            'filters' => $filters,
+            'filterOptions' => $filterOptions,
         ];
+    }
+
+    private static function transportFilters(PDO $pdo, array &$errors): array
+    {
+        $filters = [];
+        foreach (['search', 'status', 'date_from', 'date_to', 'customer_id', 'driver_id'] as $name) {
+            $value = $_GET[$name] ?? '';
+            $filters[$name] = is_string($value) ? trim($value) : '';
+        }
+
+        if ($filters['status'] !== '' && !in_array($filters['status'], ['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'], true)) {
+            $errors[] = 'Filtri i statusit nuk është i vlefshëm.';
+            $filters['status'] = '';
+        }
+        foreach (['date_from', 'date_to'] as $dateField) {
+            if ($filters[$dateField] !== '' && !self::isValidDate($filters[$dateField])) {
+                $errors[] = 'Datat e filtrit duhet të jenë në formatin e vlefshëm YYYY-MM-DD.';
+                $filters[$dateField] = '';
+            }
+        }
+        if (
+            $filters['date_from'] !== ''
+            && $filters['date_to'] !== ''
+            && $filters['date_from'] > $filters['date_to']
+        ) {
+            $errors[] = 'Data e fillimit nuk mund të jetë pas datës së mbarimit.';
+            $filters['date_from'] = '';
+            $filters['date_to'] = '';
+        }
+        foreach (['customer_id' => 'customers', 'driver_id' => 'drivers'] as $field => $table) {
+            if ($filters[$field] === '') {
+                continue;
+            }
+            $id = filter_var($filters[$field], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            if ($id === false) {
+                $errors[] = 'Filtri i klientit ose shoferit nuk është i vlefshëm.';
+                $filters[$field] = '';
+                continue;
+            }
+            $statement = $pdo->prepare("SELECT COUNT(*) FROM {$table} WHERE id = :id");
+            $statement->execute(['id' => $id]);
+            if ((int) $statement->fetchColumn() === 0) {
+                $errors[] = 'Klienti ose shoferi i zgjedhur nuk u gjet.';
+                $filters[$field] = '';
+            } else {
+                $filters[$field] = (string) $id;
+            }
+        }
+        if (mb_strlen($filters['search']) > 100) {
+            $errors[] = 'Kërkimi nuk mund të jetë më i gjatë se 100 karaktere.';
+            $filters['search'] = mb_substr($filters['search'], 0, 100);
+        }
+
+        return $filters;
+    }
+
+    private static function isValidDate(string $value): bool
+    {
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        return $date !== false && $date->format('Y-m-d') === $value;
+    }
+
+    private static function transportListStatement(PDO $pdo, array $filters): \PDOStatement
+    {
+        $where = [];
+        $parameters = [];
+        if ($filters['search'] !== '') {
+            $where[] = '(c.company_name LIKE :search_customer OR t.pickup_address LIKE :search_pickup '
+                . 'OR t.destination_address LIKE :search_destination OR t.cargo_description LIKE :search_cargo '
+                . 'OR d.full_name LIKE :search_driver OR v.plate_number LIKE :search_plate)';
+            $search = '%' . $filters['search'] . '%';
+            foreach (['customer', 'pickup', 'destination', 'cargo', 'driver', 'plate'] as $field) {
+                $parameters['search_' . $field] = $search;
+            }
+        }
+        if ($filters['status'] !== '') {
+            $where[] = 't.status = :status';
+            $parameters['status'] = $filters['status'];
+        }
+        if ($filters['date_from'] !== '') {
+            $where[] = 't.scheduled_date >= :date_from';
+            $parameters['date_from'] = $filters['date_from'] . ' 00:00:00';
+        }
+        if ($filters['date_to'] !== '') {
+            $where[] = 't.scheduled_date < DATE_ADD(:date_to, INTERVAL 1 DAY)';
+            $parameters['date_to'] = $filters['date_to'];
+        }
+        if ($filters['customer_id'] !== '') {
+            $where[] = 't.customer_id = :customer_id';
+            $parameters['customer_id'] = (int) $filters['customer_id'];
+        }
+        if ($filters['driver_id'] !== '') {
+            $where[] = 't.driver_id = :driver_id';
+            $parameters['driver_id'] = (int) $filters['driver_id'];
+        }
+
+        $whereSql = $where === [] ? '' : ' WHERE ' . implode(' AND ', $where);
+        $statement = $pdo->prepare(
+            "SELECT t.id, c.company_name AS customer_name, d.full_name AS driver_name,
+                v.plate_number, t.pickup_address, t.destination_address, t.cargo_description,
+                t.scheduled_date, t.status,
+                CASE t.status
+                    WHEN 'PLANNED' THEN 'Planifikuar'
+                    WHEN 'IN_PROGRESS' THEN 'Në proces'
+                    WHEN 'COMPLETED' THEN 'Përfunduar'
+                    ELSE 'Anuluar'
+                END AS status_label,
+                u.full_name AS created_by_name
+            FROM transports t
+            JOIN customers c ON c.id = t.customer_id
+            LEFT JOIN drivers d ON d.id = t.driver_id
+            LEFT JOIN vehicles v ON v.id = t.vehicle_id
+            JOIN users u ON u.id = t.created_by
+            {$whereSql}
+            ORDER BY t.scheduled_date DESC, t.id DESC"
+        );
+        $statement->execute($parameters);
+        return $statement;
+    }
+
+    private static function exportTransportsCsv(\PDOStatement $statement): void
+    {
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="transportet-' . date('Y-m-d') . '.csv"');
+        header('X-Content-Type-Options: nosniff');
+        $output = fopen('php://output', 'wb');
+        if ($output === false) {
+            throw new \RuntimeException('Skedari CSV nuk mund të krijohej.');
+        }
+        fwrite($output, "\xEF\xBB\xBF");
+        fputcsv($output, ['ID', 'Klienti', 'Shoferi', 'Targa', 'Nisja', 'Destinacioni', 'Ngarkesa', 'Data', 'Statusi', 'Regjistruar nga']);
+        while ($row = $statement->fetch()) {
+            fputcsv($output, [
+                $row['id'],
+                self::csvSafe($row['customer_name']),
+                self::csvSafe($row['driver_name'] ?? ''),
+                self::csvSafe($row['plate_number'] ?? ''),
+                self::csvSafe($row['pickup_address']),
+                self::csvSafe($row['destination_address']),
+                self::csvSafe($row['cargo_description']),
+                $row['scheduled_date'],
+                self::csvSafe($row['status_label']),
+                self::csvSafe($row['created_by_name']),
+            ]);
+        }
+        fclose($output);
+        exit;
+    }
+
+    private static function csvSafe(string $value): string
+    {
+        return preg_match('/^[\s]*[=+\-@]/u', $value) === 1 ? "'" . $value : $value;
     }
 
     private static function positiveId(mixed $value): ?int

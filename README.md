@@ -53,6 +53,8 @@ src/
       module.php             Pamja e përbashkët për listat dhe formularët CRUD
       not-found.php          Pamja për adresa të panjohura
       register.php           Regjistrimi publik si dispeçer
+      users.php              Menaxhimi i llogarive (vetëm admin)
+      verify-email.php       Verifikimi i email-it
     layout.php              Struktura e përbashkët e faqeve
 database/
   schema.sql                Struktura e databazës MySQL
@@ -70,6 +72,8 @@ Përdor menynë anësore ose kartat në panelin kryesor për të hapur:
 - Automjetet
 
 Modulet **Klientët**, **Shoferët**, **Automjetet** dhe **Transportet** mbështesin listimin, shtimin, ndryshimin dhe fshirjen e regjistrimeve. Formularët validohen në server; kërkesat përdorin PDO, parametrizim dhe token CSRF. Fshirja e klientit parandalohet nëse ka transporte të lidhura. Transporti lidhet me klientin, përdoruesin që e regjistroi dhe shoferin/automjetin (opsionalë).
+
+Lista e transporteve mund të filtrohet sipas statusit, datës së planifikuar, klientit dhe shoferit; fusha e kërkimit përfshin klientin, adresat, ngarkesën, shoferin dhe targën. Rezultatet e filtruar mund të eksportohen si CSV. Paneli përmbledh transportet sipas statusit për një periudhë të zgjedhur dhe ofron eksport CSV të detajeve për të njëjtën periudhë.
 
 ## Hyrja dhe përdoruesit
 

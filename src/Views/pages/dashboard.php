@@ -60,6 +60,54 @@
     </a>
 </div>
 
+<section class="transport-report" aria-labelledby="transport-report-title">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">RAPORTIMI</p>
+            <h2 id="transport-report-title">Raporti i transporteve</h2>
+        </div>
+        <span class="module-count"><?= (int) $dashboardReportTotal ?> gjithsej</span>
+    </div>
+
+    <?php if ($dashboardReportError !== null): ?>
+        <div class="notice notice-error" role="alert"><?= htmlspecialchars($dashboardReportError, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
+
+    <form class="filter-card report-filter" method="get" action="">
+        <input type="hidden" name="page" value="dashboard">
+        <div class="report-filter-fields">
+            <div class="form-field">
+                <label for="report-date-from">Nga data e planifikuar</label>
+                <input id="report-date-from" name="date_from" type="date" value="<?= htmlspecialchars($dashboardReportFrom, ENT_QUOTES, 'UTF-8') ?>" required>
+            </div>
+            <div class="form-field">
+                <label for="report-date-to">Deri më</label>
+                <input id="report-date-to" name="date_to" type="date" value="<?= htmlspecialchars($dashboardReportTo, ENT_QUOTES, 'UTF-8') ?>" required>
+            </div>
+        </div>
+        <div class="filter-actions">
+            <button class="button button-primary" type="submit">Gjenero raportin</button>
+            <?php if ($dashboardReportError === null): ?>
+                <a class="button button-secondary" href="?page=dashboard&amp;export=csv&amp;date_from=<?= rawurlencode($dashboardReportFrom) ?>&amp;date_to=<?= rawurlencode($dashboardReportTo) ?>">Eksporto CSV</a>
+            <?php endif; ?>
+        </div>
+    </form>
+
+    <div class="report-status-grid">
+        <?php foreach ($dashboardReport as $reportRow): ?>
+            <article class="report-status-card">
+                <span><?= htmlspecialchars($reportRow['label'], ENT_QUOTES, 'UTF-8') ?></span>
+                <strong><?= (int) $reportRow['total'] ?></strong>
+                <small>transport<?= (int) $reportRow['total'] === 1 ? '' : 'e' ?></small>
+            </article>
+        <?php endforeach; ?>
+    </div>
+    <p class="report-period">
+        Periudha: <?= htmlspecialchars($dashboardReportFrom, ENT_QUOTES, 'UTF-8') ?>
+        — <?= htmlspecialchars($dashboardReportTo, ENT_QUOTES, 'UTF-8') ?>
+    </p>
+</section>
+
 <div class="progress-note">
     <span class="progress-mark" aria-hidden="true">✓</span>
     <div>

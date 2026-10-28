@@ -109,6 +109,11 @@ $accountsError = null;
 $accountsSuccess = null;
 $databaseError = null;
 $dashboardStats = null;
+$dashboardReport = [];
+$dashboardReportTotal = 0;
+$dashboardReportFrom = date('Y-m-01');
+$dashboardReportTo = date('Y-m-d');
+$dashboardReportError = null;
 $moduleData = null;
 $user = null;
 $csrfToken = Authentication::csrfToken();
@@ -403,6 +408,108 @@ try {
                     (SELECT COUNT(*) FROM vehicles) AS vehicles'
             );
             $dashboardStats = $statement->fetch();
+
+            $dateFrom = $_GET['date_from'] ?? $dashboardReportFrom;
+            $dateTo = $_GET['date_to'] ?? $dashboardReportTo;
+            $isValidReportDate = static function (mixed $value): bool {
+                if (!is_string($value)) {
+                    return false;
+                }
+                $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+                return $date !== false && $date->format('Y-m-d') === $value;
+            };
+
+            if (!$isValidReportDate($dateFrom) || !$isValidReportDate($dateTo)) {
+                http_response_code(422);
+                $dashboardReportError = 'Zgjidh data të vlefshme për raportin.';
+            } elseif ($dateFrom > $dateTo) {
+                http_response_code(422);
+                $dashboardReportError = 'Data e fillimit nuk mund të jetë pas datës së mbarimit.';
+            } else {
+                $dashboardReportFrom = $dateFrom;
+                $dashboardReportTo = $dateTo;
+                $reportStatement = $pdo->prepare(
+                    'SELECT status, COUNT(*) AS total
+                    FROM transports
+                    WHERE scheduled_date >= :date_from
+                        AND scheduled_date < DATE_ADD(:date_to, INTERVAL 1 DAY)
+                    GROUP BY status'
+                );
+                $reportStatement->execute([
+                    'date_from' => $dashboardReportFrom . ' 00:00:00',
+                    'date_to' => $dashboardReportTo,
+                ]);
+                $statusCounts = array_column($reportStatement->fetchAll(), 'total', 'status');
+                $reportLabels = [
+                    'PLANNED' => 'Planifikuar',
+                    'IN_PROGRESS' => 'Në proces',
+                    'COMPLETED' => 'Përfunduar',
+                    'CANCELLED' => 'Anuluar',
+                ];
+                foreach ($reportLabels as $status => $label) {
+                    $total = (int) ($statusCounts[$status] ?? 0);
+                    $dashboardReport[] = ['status' => $status, 'label' => $label, 'total' => $total];
+                    $dashboardReportTotal += $total;
+                }
+
+                if (($_GET['export'] ?? null) === 'csv') {
+                    $exportStatement = $pdo->prepare(
+                        'SELECT t.id, c.company_name AS customer_name, d.full_name AS driver_name,
+                            v.plate_number, t.pickup_address, t.destination_address, t.cargo_description,
+                            t.scheduled_date, t.status, u.full_name AS created_by_name
+                        FROM transports t
+                        JOIN customers c ON c.id = t.customer_id
+                        LEFT JOIN drivers d ON d.id = t.driver_id
+                        LEFT JOIN vehicles v ON v.id = t.vehicle_id
+                        JOIN users u ON u.id = t.created_by
+                        WHERE t.scheduled_date >= :date_from
+                            AND t.scheduled_date < DATE_ADD(:date_to, INTERVAL 1 DAY)
+                        ORDER BY t.scheduled_date DESC, t.id DESC'
+                    );
+                    $exportStatement->execute([
+                        'date_from' => $dashboardReportFrom . ' 00:00:00',
+                        'date_to' => $dashboardReportTo,
+                    ]);
+                    header('Content-Type: text/csv; charset=utf-8');
+                    header(
+                        'Content-Disposition: attachment; filename="raporti-transportit-'
+                        . $dashboardReportFrom . '-deri-' . $dashboardReportTo . '.csv"'
+                    );
+                    header('X-Content-Type-Options: nosniff');
+                    $output = fopen('php://output', 'wb');
+                    if ($output === false) {
+                        throw new \RuntimeException('Skedari CSV i raportit nuk mund të krijohej.');
+                    }
+                    fwrite($output, "\xEF\xBB\xBF");
+                    fputcsv($output, ['ID', 'Klienti', 'Shoferi', 'Targa', 'Nisja', 'Destinacioni', 'Ngarkesa', 'Data', 'Statusi', 'Regjistruar nga']);
+                    $safeCsvValue = static function (?string $value): string {
+                        $value ??= '';
+                        return preg_match('/^[\s]*[=+\-@]/u', $value) === 1 ? "'" . $value : $value;
+                    };
+                    $statusCsvLabels = [
+                        'PLANNED' => 'Planifikuar',
+                        'IN_PROGRESS' => 'Në proces',
+                        'COMPLETED' => 'Përfunduar',
+                        'CANCELLED' => 'Anuluar',
+                    ];
+                    while ($row = $exportStatement->fetch()) {
+                        fputcsv($output, [
+                            $row['id'],
+                            $safeCsvValue($row['customer_name']),
+                            $safeCsvValue($row['driver_name']),
+                            $safeCsvValue($row['plate_number']),
+                            $safeCsvValue($row['pickup_address']),
+                            $safeCsvValue($row['destination_address']),
+                            $safeCsvValue($row['cargo_description']),
+                            $row['scheduled_date'],
+                            $statusCsvLabels[$row['status']] ?? $row['status'],
+                            $safeCsvValue($row['created_by_name']),
+                        ]);
+                    }
+                    fclose($output);
+                    exit;
+                }
+            }
         }
     }
 } catch (\PDOException $exception) {
@@ -414,6 +521,8 @@ try {
         $registerError = 'Nuk mund të krijohet llogaria për shkak të lidhjes me databazën. Provo përsëri.';
     } elseif ($pageKey === 'verify-email') {
         $verificationError = 'Nuk mund të kryhet verifikimi për shkak të lidhjes me databazën. Provo përsëri.';
+    } elseif ($pageKey === 'dashboard') {
+        $dashboardReportError = 'Nuk mund të ngarkohet raporti për shkak të lidhjes me databazën.';
     } else {
         $databaseError = 'Nuk mund të kryhet kërkesa për shkak të lidhjes me databazën. Kontrollo MySQL dhe provo përsëri.';
     }

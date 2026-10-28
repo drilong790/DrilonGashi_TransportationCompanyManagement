@@ -13,6 +13,62 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
     <?php endif; ?>
 </div>
 
+<?php if ($pageKey === 'transports' && $formAction === 'list'): ?>
+    <form class="filter-card" method="get" action="">
+        <input type="hidden" name="page" value="transports">
+        <div class="filter-grid">
+            <div class="form-field filter-search">
+                <label for="transport-search">Kërko</label>
+                <input id="transport-search" name="search" type="search" maxlength="100" placeholder="Klient, adresë, ngarkesë..." value="<?= $escape($moduleData['filters']['search']) ?>">
+            </div>
+            <div class="form-field">
+                <label for="transport-status">Statusi</label>
+                <select id="transport-status" name="status">
+                    <option value="">Të gjitha</option>
+                    <option value="PLANNED" <?= $moduleData['filters']['status'] === 'PLANNED' ? 'selected' : '' ?>>Planifikuar</option>
+                    <option value="IN_PROGRESS" <?= $moduleData['filters']['status'] === 'IN_PROGRESS' ? 'selected' : '' ?>>Në proces</option>
+                    <option value="COMPLETED" <?= $moduleData['filters']['status'] === 'COMPLETED' ? 'selected' : '' ?>>Përfunduar</option>
+                    <option value="CANCELLED" <?= $moduleData['filters']['status'] === 'CANCELLED' ? 'selected' : '' ?>>Anuluar</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label for="transport-date-from">Nga data</label>
+                <input id="transport-date-from" name="date_from" type="date" value="<?= $escape($moduleData['filters']['date_from']) ?>">
+            </div>
+            <div class="form-field">
+                <label for="transport-date-to">Deri më</label>
+                <input id="transport-date-to" name="date_to" type="date" value="<?= $escape($moduleData['filters']['date_to']) ?>">
+            </div>
+            <div class="form-field">
+                <label for="transport-customer">Klienti</label>
+                <select id="transport-customer" name="customer_id">
+                    <option value="">Të gjithë klientët</option>
+                    <?php foreach ($moduleData['filterOptions']['customers'] as $customer): ?>
+                        <option value="<?= (int) $customer['id'] ?>" <?= $moduleData['filters']['customer_id'] === (string) $customer['id'] ? 'selected' : '' ?>>
+                            <?= $escape($customer['company_name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="form-field">
+                <label for="transport-driver">Shoferi</label>
+                <select id="transport-driver" name="driver_id">
+                    <option value="">Të gjithë shoferët</option>
+                    <?php foreach ($moduleData['filterOptions']['drivers'] as $driver): ?>
+                        <option value="<?= (int) $driver['id'] ?>" <?= $moduleData['filters']['driver_id'] === (string) $driver['id'] ? 'selected' : '' ?>>
+                            <?= $escape($driver['full_name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+        <div class="filter-actions">
+            <a class="button button-secondary" href="?page=transports">Pastro filtrat</a>
+            <button class="button button-primary" type="submit">Kërko transporte</button>
+        </div>
+    </form>
+<?php endif; ?>
+
 <?php if ($moduleData['message'] !== null): ?>
     <div class="notice notice-success" role="status"><?= $escape($moduleData['message']) ?></div>
 <?php endif; ?>
@@ -87,8 +143,8 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
     <div class="table-card">
         <?php if ($moduleData['rows'] === []): ?>
             <div class="empty-state">
-                <strong>Nuk ka ende të dhëna</strong>
-                <p>Shto regjistrin e parë për modulin <?= $escape(mb_strtolower($module['title'])) ?>.</p>
+                <strong><?= $pageKey === 'transports' ? 'Nuk u gjet asnjë transport' : 'Nuk ka ende të dhëna' ?></strong>
+                <p><?= $pageKey === 'transports' ? 'Ndrysho kriteret e kërkimit ose pastro filtrat.' : 'Shto regjistrin e parë për modulin ' . $escape(mb_strtolower($module['title'])) . '.' ?></p>
             </div>
         <?php else: ?>
             <div class="table-scroll">
@@ -132,4 +188,18 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
             <?php endif; ?>
         <?php endif; ?>
     </div>
+    <?php if ($pageKey === 'transports'): ?>
+        <?php
+        $exportParameters = array_filter(
+            $moduleData['filters'],
+            static fn (string $value): bool => $value !== ''
+        );
+        $exportParameters['page'] = 'transports';
+        $exportParameters['export'] = 'csv';
+        ?>
+        <div class="report-export-row">
+            <span>Eksporti CSV përfshin të gjitha rezultatet që përputhen me filtrat.</span>
+            <a class="button button-secondary" href="?<?= $escape(http_build_query($exportParameters)) ?>">Eksporto rezultatet CSV</a>
+        </div>
+    <?php endif; ?>
 <?php endif; ?>

@@ -593,6 +593,111 @@ p {
     font-size: 13px;
 }
 
+.filter-card {
+    margin-bottom: 16px;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: minmax(190px, 1.5fr) repeat(3, minmax(125px, 1fr));
+    gap: 13px;
+}
+
+.filter-search {
+    grid-column: span 1;
+}
+
+.filter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 9px;
+    margin-top: 16px;
+}
+
+.report-export-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 13px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.transport-report {
+    margin-top: 34px;
+}
+
+.transport-report .section-heading {
+    margin-top: 0;
+}
+
+.report-filter {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.report-filter-fields {
+    display: grid;
+    width: min(100%, 520px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.report-filter .filter-actions {
+    margin-top: 0;
+}
+
+.report-status-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 13px;
+    margin-top: 14px;
+}
+
+.report-status-card {
+    display: flex;
+    min-height: 116px;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 17px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.report-status-card span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 650;
+}
+
+.report-status-card strong {
+    margin-top: 8px;
+    color: var(--ink);
+    font-size: 25px;
+    letter-spacing: -0.04em;
+}
+
+.report-status-card small {
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.report-period {
+    margin: 11px 2px 0;
+    color: var(--muted);
+    font-size: 11px;
+}
+
 .button {
     display: inline-flex;
     min-height: 39px;
@@ -1007,6 +1112,32 @@ p {
         flex-direction: column;
     }
 
+    .filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .report-filter {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .report-filter-fields {
+        width: 100%;
+    }
+
+    .report-filter .filter-actions {
+        justify-content: flex-start;
+    }
+
+    .report-status-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .report-export-row {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
     .record-form {
         padding: 16px;
     }
@@ -1057,6 +1188,12 @@ p {
 
     .module-card {
         min-height: 150px;
+    }
+
+    .filter-grid,
+    .report-filter-fields,
+    .report-status-grid {
+        grid-template-columns: 1fr;
     }
 
     .module-card-description {
