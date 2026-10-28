@@ -18,7 +18,7 @@ Ky folder përmban skedarët për krijimin dhe përditësimin e databazës MySQL
    composer install
    ```
 
-`schema.sql` krijon tabelat e përdoruesve, klientëve, shoferëve, automjeteve dhe transporteve. Llogaritë demo në `sample_data.sql` janë të shënuara si të verifikuara.
+`schema.sql` krijon tabelat e përdoruesve, klientëve, shoferëve, automjeteve dhe transporteve. `sample_data.sql` mbush bazën me llogari demo të verifikuara, 10 klientë, 8 shoferë, 9 automjete dhe 15 skenarë transporti. Importimi mund të përsëritet pa dublikuar të dhënat demo; transportet lidhen me klientët, shoferët, automjetet dhe përdoruesit përmes vlerave unike, jo ID-ve fikse.
 
 ## Përditësimi i një databaze ekzistuese
 
