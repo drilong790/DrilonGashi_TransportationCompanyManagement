@@ -6,6 +6,7 @@ use App\Auth\Authentication;
 use App\Database\Connection;
 use App\Modules\CrudModule;
 
+require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/Auth/Authentication.php';
 require_once __DIR__ . '/../src/Database/Connection.php';
 require_once __DIR__ . '/../src/Modules/CrudModule.php';
@@ -57,6 +58,11 @@ $pages = [
         'description' => 'Regjistro një llogari dispeçeri.',
         'view' => 'register.php',
     ],
+    'verify-email' => [
+        'title' => 'Verifiko email-in',
+        'description' => 'Konfirmo adresën e email-it për të aktivizuar llogarinë.',
+        'view' => 'verify-email.php',
+    ],
     'add-admin' => [
         'title' => 'Shto administrator',
         'description' => 'Krijo një llogari të re administratori.',
@@ -87,6 +93,9 @@ if (is_string($requestedPage) && ($requestedPage === 'logout' || isset($pages[$r
 $loginError = null;
 $registerError = null;
 $registerValues = ['full_name' => '', 'email' => ''];
+$verificationEmail = '';
+$verificationError = null;
+$verificationMessage = null;
 $adminError = null;
 $adminValues = ['full_name' => '', 'email' => ''];
 $adminSuccess = null;
@@ -112,12 +121,18 @@ if ($pageKey === 'logout') {
 try {
     $pdo = Connection::create();
 
-    if ($pageKey === 'login' || $pageKey === 'register') {
+    if (in_array($pageKey, ['login', 'register', 'verify-email'], true)) {
         $user = Authentication::currentUser($pdo);
-        if ($user !== null) {
+        if ($user !== null && $pageKey !== 'verify-email') {
             header('Location: ?page=dashboard');
             exit;
         }
+
+        $verificationEmail = is_string($_SESSION['verification_email'] ?? null)
+            ? $_SESSION['verification_email']
+            : '';
+        $verificationMessage = $_SESSION['verification_message'] ?? null;
+        unset($_SESSION['verification_message']);
 
         if ($pageKey === 'register' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $fullName = $_POST['full_name'] ?? null;
@@ -146,14 +161,59 @@ try {
             } elseif (!is_string($passwordConfirmation) || !hash_equals($password, $passwordConfirmation)) {
                 http_response_code(422);
                 $registerError = 'Fjalëkalimet nuk përputhen.';
-            } elseif (!Authentication::register($pdo, trim($fullName), mb_strtolower(trim($email)), $password)) {
-                http_response_code(409);
-                $registerError = 'Nuk mund të krijohet llogaria me këtë email. Kontrollo të dhënat ose provo të hysh.';
             } else {
-                $_SESSION['flash_message'] = 'Llogaria DISPATCHER u krijua. Tani mund të hysh me email-in dhe fjalëkalimin.';
-                header('Location: ?page=login');
-                exit;
+                $normalizedEmail = mb_strtolower(trim($email));
+                $userId = Authentication::register($pdo, trim($fullName), $normalizedEmail, $password);
+                if ($userId === null) {
+                    http_response_code(409);
+                    $registerError = 'Nuk mund të krijohet llogaria me këtë email. Kontrollo të dhënat ose provo të hysh.';
+                } else {
+                    $_SESSION['verification_email'] = $normalizedEmail;
+                    try {
+                        Authentication::sendVerificationCode($pdo, $userId, $normalizedEmail, trim($fullName));
+                        $_SESSION['verification_message'] = 'Llogaria u krijua. Kodi i verifikimit u dërgua në email-in tënd.';
+                    } catch (\RuntimeException $exception) {
+                        $_SESSION['verification_message'] = 'Llogaria u krijua, por kodi nuk u dërgua. Kontrollo konfigurimin SMTP ose provo ridërgimin.';
+                    }
+                    header('Location: ?page=verify-email');
+                    exit;
+                }
             }
+        } elseif ($pageKey === 'verify-email' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $email = $_POST['email'] ?? null;
+            $action = $_POST['action'] ?? null;
+            $verificationEmail = is_string($email) ? mb_strtolower(trim($email)) : '';
+            if (!Authentication::isValidCsrfToken($_POST['csrf_token'] ?? null)) {
+                http_response_code(400);
+                $verificationError = 'Kërkesa skadoi ose nuk është e vlefshme. Rifresko faqen dhe provo përsëri.';
+            } elseif (!is_string($email) || filter_var(trim($email), FILTER_VALIDATE_EMAIL) === false) {
+                http_response_code(422);
+                $verificationError = 'Shkruaj një adresë email të vlefshme.';
+            } elseif ($action === 'verify') {
+                $code = $_POST['code'] ?? null;
+                if (!is_string($code) || !Authentication::verifyEmail($pdo, $verificationEmail, trim($code))) {
+                    http_response_code(422);
+                    $verificationError = 'Kodi nuk është i vlefshëm, ka skaduar ose është tejkaluar numri i tentativave.';
+                } else {
+                    unset($_SESSION['verification_email']);
+                    $_SESSION['flash_message'] = 'Email-i u verifikua. Tani mund të hysh në llogari.';
+                    header('Location: ?page=login');
+                    exit;
+                }
+            } elseif ($action === 'resend') {
+                try {
+                    $sent = Authentication::resendVerificationCode($pdo, $verificationEmail);
+                    $verificationMessage = $sent
+                        ? 'Nëse ekziston një llogari e paverifikuar me këtë email, kodi u dërgua. Prit të paktën 60 sekonda para një kërkese tjetër.'
+                        : 'Prit të paktën 60 sekonda para se të kërkosh një kod tjetër.';
+                } catch (\RuntimeException $exception) {
+                    $verificationError = 'Kodi nuk mund të dërgohej. Kontrollo konfigurimin SMTP dhe provo përsëri pas pak.';
+                }
+            } else {
+                http_response_code(400);
+                $verificationError = 'Veprimi i kërkuar nuk është i vlefshëm.';
+            }
+            $_SESSION['verification_email'] = $verificationEmail;
         } elseif ($pageKey === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $email = $_POST['email'] ?? null;
             $password = $_POST['password'] ?? null;
@@ -226,13 +286,22 @@ try {
                     } elseif (!is_string($passwordConfirmation) || !hash_equals($password, $passwordConfirmation)) {
                         http_response_code(422);
                         $adminError = 'Fjalëkalimet nuk përputhen.';
-                    } elseif (!Authentication::createAdmin($pdo, trim($fullName), mb_strtolower(trim($email)), $password)) {
-                        http_response_code(409);
-                        $adminError = 'Ky email është përdorur tashmë për një llogari.';
                     } else {
-                        $_SESSION['flash_message'] = 'Llogaria e re ADMIN u krijua me sukses.';
-                        header('Location: ?page=add-admin');
-                        exit;
+                        $normalizedEmail = mb_strtolower(trim($email));
+                        $userId = Authentication::createAdmin($pdo, trim($fullName), $normalizedEmail, $password);
+                        if ($userId === null) {
+                            http_response_code(409);
+                            $adminError = 'Ky email është përdorur tashmë për një llogari.';
+                        } else {
+                            try {
+                                Authentication::sendVerificationCode($pdo, $userId, $normalizedEmail, trim($fullName));
+                                $_SESSION['flash_message'] = 'Llogaria e re ADMIN u krijua. Kodi i verifikimit u dërgua në email-in e përdoruesit.';
+                            } catch (\RuntimeException $exception) {
+                                $_SESSION['flash_message'] = 'Llogaria ADMIN u krijua, por kodi nuk u dërgua. Përdoruesi mund ta kërkojë sërish te faqja e verifikimit.';
+                            }
+                            header('Location: ?page=add-admin');
+                            exit;
+                        }
                     }
                 }
             }
@@ -256,6 +325,8 @@ try {
         $loginError = 'Nuk mund të lidhemi me databazën. Kontrollo MySQL dhe konfigurimin e databazës.';
     } elseif ($pageKey === 'register') {
         $registerError = 'Nuk mund të krijohet llogaria për shkak të lidhjes me databazën. Provo përsëri.';
+    } elseif ($pageKey === 'verify-email') {
+        $verificationError = 'Nuk mund të kryhet verifikimi për shkak të lidhjes me databazën. Provo përsëri.';
     } else {
         $databaseError = 'Nuk mund të kryhet kërkesa për shkak të lidhjes me databazën. Kontrollo MySQL dhe provo përsëri.';
     }
@@ -264,7 +335,7 @@ try {
 $page = $pages[$pageKey];
 $viewFile = __DIR__ . '/../src/Views/pages/' . $page['view'];
 
-if (in_array($pageKey, ['login', 'register'], true)) {
+if (in_array($pageKey, ['login', 'register', 'verify-email'], true)) {
     require $viewFile;
     exit;
 }

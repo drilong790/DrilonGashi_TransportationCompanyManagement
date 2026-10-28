@@ -22,7 +22,7 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
         </a>
         <p class="eyebrow">REGJISTRIMI</p>
         <h1>Krijo llogari</h1>
-        <p class="login-description">Regjistrimi publik krijon vetëm llogari dispeçeri. Administratori krijohet veçmas nga terminali.</p>
+        <p class="login-description">Regjistrimi publik krijon vetëm llogari dispeçeri. Për hyrje kërkohet verifikimi i email-it.</p>
 
         <?php if ($registerError !== null): ?>
             <div class="notice notice-error" role="alert"><?= $escape($registerError) ?></div>

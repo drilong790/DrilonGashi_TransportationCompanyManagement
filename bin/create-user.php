@@ -78,8 +78,8 @@ try {
 
     $pdo = Connection::create();
     $statement = $pdo->prepare(
-        'INSERT INTO users (full_name, email, password_hash, role, is_active)
-        VALUES (:full_name, :email, :password_hash, :role, 1)'
+        'INSERT INTO users (full_name, email, password_hash, role, is_active, email_verified_at)
+        VALUES (:full_name, :email, :password_hash, :role, 1, CURRENT_TIMESTAMP)'
     );
     $statement->execute([
         'full_name' => $fullName,

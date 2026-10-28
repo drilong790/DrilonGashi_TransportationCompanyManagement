@@ -3,7 +3,7 @@
 $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 ?>
 <div class="module-toolbar">
-    <p>Krijo llogari administratori për një person të besuar. Roli caktohet nga serveri.</p>
+    <p>Krijo llogari administratori për një person të besuar. Roli caktohet nga serveri, dhe llogaria aktivizohet pasi pronari verifikon email-in.</p>
     <a class="button button-secondary" href="?page=dashboard">Kthehu te paneli</a>
 </div>
 

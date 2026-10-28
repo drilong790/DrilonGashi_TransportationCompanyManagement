@@ -8,6 +8,9 @@ use PDO;
 
 final class Authentication
 {
+    private const VERIFICATION_RESEND_DELAY_SECONDS = 60;
+    private const VERIFICATION_MAX_ATTEMPTS = 5;
+
     public static function csrfToken(): string
     {
         if (!isset($_SESSION['csrf_token'])) {
@@ -37,7 +40,8 @@ final class Authentication
 
         $statement = $pdo->prepare(
             "SELECT id, full_name, email, role FROM users
-            WHERE id = :id AND is_active = 1 AND role IN ('ADMIN', 'DISPATCHER')
+            WHERE id = :id AND is_active = 1 AND email_verified_at IS NOT NULL
+                AND role IN ('ADMIN', 'DISPATCHER')
             LIMIT 1"
         );
         $statement->execute(['id' => $userId]);
@@ -53,7 +57,8 @@ final class Authentication
     {
         $statement = $pdo->prepare(
             "SELECT id, full_name, email, password_hash, role FROM users
-            WHERE email = :email AND is_active = 1 AND role IN ('ADMIN', 'DISPATCHER')
+            WHERE email = :email AND is_active = 1 AND email_verified_at IS NOT NULL
+                AND role IN ('ADMIN', 'DISPATCHER')
             LIMIT 1"
         );
         $statement->execute(['email' => $email]);
@@ -75,12 +80,12 @@ final class Authentication
         return $user;
     }
 
-    public static function register(PDO $pdo, string $fullName, string $email, string $password): bool
+    public static function register(PDO $pdo, string $fullName, string $email, string $password): ?int
     {
         return self::createAccount($pdo, $fullName, $email, $password, 'DISPATCHER');
     }
 
-    public static function createAdmin(PDO $pdo, string $fullName, string $email, string $password): bool
+    public static function createAdmin(PDO $pdo, string $fullName, string $email, string $password): ?int
     {
         return self::createAccount($pdo, $fullName, $email, $password, 'ADMIN');
     }
@@ -91,10 +96,10 @@ final class Authentication
         string $email,
         string $password,
         string $role
-    ): bool {
+    ): ?int {
         $statement = $pdo->prepare(
-            'INSERT INTO users (full_name, email, password_hash, role, is_active)
-            VALUES (:full_name, :email, :password_hash, :role, 1)'
+            'INSERT INTO users (full_name, email, password_hash, role, is_active, email_verified_at)
+            VALUES (:full_name, :email, :password_hash, :role, 0, NULL)'
         );
 
         try {
@@ -106,12 +111,140 @@ final class Authentication
             ]);
         } catch (\PDOException $exception) {
             if (($exception->errorInfo[1] ?? null) === 1062) {
-                return false;
+                return null;
             }
             throw $exception;
         }
 
-        return true;
+        return (int) $pdo->lastInsertId();
+    }
+
+    public static function sendVerificationCode(PDO $pdo, int $userId, string $email, string $fullName): void
+    {
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $statement = $pdo->prepare(
+            'INSERT INTO email_verifications (user_id, code_hash, expires_at, attempts, last_sent_at)
+            VALUES (:user_id, :code_hash, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 10 MINUTE), 0, CURRENT_TIMESTAMP)
+            ON DUPLICATE KEY UPDATE
+                code_hash = VALUES(code_hash),
+                expires_at = VALUES(expires_at),
+                attempts = 0,
+                last_sent_at = CURRENT_TIMESTAMP'
+        );
+        $statement->bindValue(':user_id', $userId, PDO::PARAM_INT);
+        $statement->bindValue(':code_hash', password_hash($code, PASSWORD_DEFAULT), PDO::PARAM_STR);
+        $statement->execute();
+
+        try {
+            (new \App\Mail\SmtpMailer())->sendVerificationCode($email, $fullName, $code);
+        } catch (\Throwable $exception) {
+            $cause = $exception->getPrevious();
+            error_log(
+                'Sending email verification failed: '
+                . ($cause === null ? $exception->getMessage() : $cause->getMessage())
+            );
+            throw new \RuntimeException(
+                'Kodi i verifikimit nuk u dërgua. Provo ridërgimin pas pak minutash.',
+                0,
+                $exception
+            );
+        }
+    }
+
+    public static function resendVerificationCode(PDO $pdo, string $email): bool
+    {
+        $pdo->beginTransaction();
+        try {
+            $statement = $pdo->prepare(
+                'SELECT u.id, u.full_name, u.email,
+                    TIMESTAMPDIFF(SECOND, v.last_sent_at, CURRENT_TIMESTAMP) AS seconds_since_last_sent
+                FROM users u
+                LEFT JOIN email_verifications v ON v.user_id = u.id
+                WHERE u.email = :email AND u.is_active = 0 AND u.email_verified_at IS NULL
+                LIMIT 1 FOR UPDATE'
+            );
+            $statement->execute(['email' => $email]);
+            $user = $statement->fetch();
+            if ($user === false) {
+                $pdo->commit();
+                return true;
+            }
+            if (
+                $user['seconds_since_last_sent'] !== null
+                && (int) $user['seconds_since_last_sent'] < self::VERIFICATION_RESEND_DELAY_SECONDS
+            ) {
+                $pdo->commit();
+                return false;
+            }
+
+            try {
+                self::sendVerificationCode($pdo, (int) $user['id'], $user['email'], $user['full_name']);
+            } catch (\RuntimeException $exception) {
+                $pdo->commit();
+                throw $exception;
+            }
+            $pdo->commit();
+            return true;
+        } catch (\Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $exception;
+        }
+    }
+
+    public static function verifyEmail(PDO $pdo, string $email, string $code): bool
+    {
+        if (preg_match('/^\d{6}$/D', $code) !== 1) {
+            return false;
+        }
+
+        $pdo->beginTransaction();
+        try {
+            $statement = $pdo->prepare(
+                'SELECT u.id, v.code_hash, (v.expires_at > CURRENT_TIMESTAMP) AS not_expired, v.attempts
+                FROM users u
+                JOIN email_verifications v ON v.user_id = u.id
+                WHERE u.email = :email AND u.is_active = 0 AND u.email_verified_at IS NULL
+                LIMIT 1 FOR UPDATE'
+            );
+            $statement->execute(['email' => $email]);
+            $verification = $statement->fetch();
+
+            if (
+                $verification === false
+                || (int) $verification['not_expired'] !== 1
+                || (int) $verification['attempts'] >= self::VERIFICATION_MAX_ATTEMPTS
+            ) {
+                $pdo->commit();
+                return false;
+            }
+
+            if (!password_verify($code, $verification['code_hash'])) {
+                $update = $pdo->prepare(
+                    'UPDATE email_verifications SET attempts = attempts + 1 WHERE user_id = :user_id'
+                );
+                $update->execute(['user_id' => $verification['id']]);
+                $pdo->commit();
+                return false;
+            }
+
+            $activate = $pdo->prepare(
+                'UPDATE users
+                SET email_verified_at = CURRENT_TIMESTAMP, is_active = 1
+                WHERE id = :user_id AND is_active = 0 AND email_verified_at IS NULL'
+            );
+            $activate->execute(['user_id' => $verification['id']]);
+            $delete = $pdo->prepare('DELETE FROM email_verifications WHERE user_id = :user_id');
+            $delete->execute(['user_id' => $verification['id']]);
+            $pdo->commit();
+            return true;
+        } catch (\Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $exception;
+        }
     }
 
     public static function signOut(): void

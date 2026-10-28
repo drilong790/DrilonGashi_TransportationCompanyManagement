@@ -1,112 +1,60 @@
-# Database për Sistemin e Menaxhimit të Kompanive të Transportit
+# Databaza e sistemit të transportit
 
-Ky folder përmban skedarët e nevojshëm për krijimin e databazës `transport_management` me MySQL dhe lidhjen nga PHP me PDO.
+Ky folder përmban skedarët për krijimin dhe përditësimin e databazës MySQL `transport_management`.
 
-## 1. Skedarët e krijuara
+## Instalimi i ri
 
-- `schema.sql` – krijon bazën e të dhënave dhe tabelat e nevojshme
-- `sample_data.sql` – shton të dhëna fals (fiktive) për klientë, shoferë, automjete dhe transportet
+1. Nise Apache dhe MySQL nga XAMPP.
+2. Krijo/importo databazën përmes phpMyAdmin ose terminalit:
 
-## 2. Importimi në phpMyAdmin
+   ```bash
+   mysql -u root -p < database/schema.sql
+   mysql -u root -p transport_management < database/sample_data.sql
+   ```
 
-1. Hap XAMPP Control Panel dhe nis `Apache` dhe `MySQL`.
-2. Shko te `http://localhost/phpmyadmin`.
-3. Krijo një databazë të re me emrin `transport_management`.
-4. Kliko te skeda `Import`.
-5. Zgjidh skedarin `database/schema.sql` dhe importo.
-6. Pastaj importo edhe skedarin `database/sample_data.sql`.
+3. Instalo varësitë PHP nga dosja kryesore e projektit:
 
-> Nëse e keni krijuar bazën e të dhënave me `schema.sql`, importimi i `sample_data.sql` do të shtojë të dhënat demo pa fshirë strukturën e tabelave.
+   ```bash
+   composer install
+   ```
 
-## 3. Importimi në XAMPP me terminal
+`schema.sql` krijon tabelat e përdoruesve, klientëve, shoferëve, automjeteve dhe transporteve. Llogaritë demo në `sample_data.sql` janë të shënuara si të verifikuara.
 
-Nëse dëshiron ta importosh nga linja e komandës:
+## Përditësimi i një databaze ekzistuese
 
-```bash
-mysql -u root -p
-CREATE DATABASE IF NOT EXISTS transport_management;
-USE transport_management;
-SOURCE C:/xampp/mysql/data/transport_management.sql;
-```
+Mos e riimporto `schema.sql` në një bazë që përmban të dhëna. Ekzekuto vetëm një herë migrimin `migrations/20261028_add_email_verification.sql` për të shtuar kolonën e verifikimit dhe tabelën e kodeve. Migrimi i shënon si të verifikuara llogaritë aktive ekzistuese.
 
-Ose edhe më thjeshtë:
+Përmes terminalit, kur databaza ekziston:
 
 ```bash
-mysql -u root -p transport_management < C:/xampp/htdocs/projekti/database/schema.sql
-mysql -u root -p transport_management < C:/xampp/htdocs/projekti/database/sample_data.sql
+mysql -u root -p transport_management < database/migrations/20261028_add_email_verification.sql
 ```
 
-## 4. Raporti i tabelave
+## Konfigurimi i aplikacionit
 
-- `users` është tabela e përdoruesve të sistemit (admin dhe dispatcher).
-- `customers` përmban klientët e transportit.
-- `drivers` përmban shoferët.
-- `vehicles` përmban automjetet e disponueshme.
-- `transports` lidhet me `customers`, `drivers`, `vehicles` dhe `users`:
-  - `customer_id` -> `customers.id`
-  - `driver_id` -> `drivers.id`
-  - `vehicle_id` -> `vehicles.id`
-  - `created_by` -> `users.id`
+Aplikacioni përdor PDO nga `src/Database/Connection.php`. Databaza konfigurohet me variablat `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` dhe `DB_PASSWORD`. Për XAMPP, vlerat e parazgjedhura janë `127.0.0.1`, `3306`, `transport_management`, `root` dhe fjalëkalim bosh. Mos vendos kredenciale reale në skedarë të versionuar.
 
-## 5. Kontrollat e nevojshme në PHP para se të ruhet një transport
+Për të krijuar administratorin fillestar, përdor `bin/create-user.php` në terminal interaktiv. Ai ruan hash-in e fjalëkalimit dhe e shënon llogarinë si të verifikuar. Përdoruesit e rinj të krijuar përmes regjistrimit ose nga administratori duhet të verifikojnë email-in para hyrjes.
 
-Para se të ruhet një transport, PHP kontrollon:
+## Konfigurimi i email-it SMTP
 
-- `customer_id` ekziston dhe është i vlefshëm.
-- `created_by` vendoset automatikisht nga sesioni i përdoruesit aktiv.
-- `driver_id`, nëse është dhënë, ekziston dhe është `is_active = 1`.
-- `vehicle_id`, nëse është dhënë, ekziston dhe është `is_active = 1`.
-- Adresat e nisjes dhe destinacionit nuk janë bosh.
-- `scheduled_date` është e formatuar saktë dhe jo në të kaluarën (nëse kjo është kërkuar nga logjika e biznesit).
-- `status` duhet të jetë një nga: `PLANNED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`.
-- Nëse `driver_id` ose `vehicle_id` janë null, transporti mund të ruhet pa caktim.
+PHPMailer dërgon kodin e verifikimit përmes SMTP. Vendos variablat e mëposhtme në konfigurimin lokal të Apache/PHP (p.sh. me direktivat `SetEnv` në konfigurimin lokal të Apache), pastaj rinise Apache. Mos i shto vlerat reale në Git.
 
-Për shembull, kontrolli për shoferin dhe automjetin aktiv:
+| Variabla | Përshkrimi |
+|---|---|
+| `SMTP_HOST` | Hostname i serverit SMTP |
+| `SMTP_PORT` | Porta SMTP: zakonisht `587` për TLS ose `465` për SSL |
+| `SMTP_USERNAME` | Emri i përdoruesit SMTP |
+| `SMTP_PASSWORD` | Fjalëkalimi ose app-password SMTP |
+| `SMTP_FROM_EMAIL` | Adresa e vlefshme dërguese |
+| `SMTP_FROM_NAME` | Emri i dërguesit; opsional, parazgjedhja `Transporti` |
+| `SMTP_ENCRYPTION` | `tls` (parazgjedhje) ose `ssl` |
+| `APP_URL` | Adresa bazë e aplikacionit për lidhjen në email; opsionale |
 
-```php
-$stmt = $pdo->prepare('SELECT id, is_active FROM drivers WHERE id = :id LIMIT 1');
-$stmt->execute(['id' => $driverId]);
-$driver = $stmt->fetch(PDO::FETCH_ASSOC);
+Kodi i verifikimit ka 6 shifra, ruhet vetëm si hash, skadon pas 10 minutash, lejon maksimumi 5 tentativa dhe mund të ridërgohet jo më shpesh se një herë në 60 sekonda.
 
-if ($driver && (int)$driver['is_active'] !== 1) {
-    throw new Exception('Shoferi nuk është aktiv.');
-}
+Për XAMPP, kur PDO MySQL dhe `mbstring` janë aktive dhe SMTP është konfiguruar, aplikacioni mund të niset nga dosja kryesore me:
+
+```bash
+php -S localhost:8000 -t public
 ```
-
-```php
-$stmt = $pdo->prepare('SELECT id, is_active FROM vehicles WHERE id = :id LIMIT 1');
-$stmt->execute(['id' => $vehicleId]);
-$vehicle = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if ($vehicle && (int)$vehicle['is_active'] !== 1) {
-    throw new Exception('Automjeti nuk është aktiv.');
-}
-```
-
-## 6. Fjalëkalimi i përdoruesve
-
-Mos ruaj fjalëkalime në tekst të thjeshtë. Pas importimit të `schema.sql`, përdor skriptin interaktiv `bin/create-user.php` për të krijuar administratorin e parë. Ai ruan vetëm hash-in e krijuar me `password_hash()` dhe kërkon rol `ADMIN` ose `DISPATCHER`. Skripti kërkon terminal interaktiv dhe fsheh fjalëkalimin gjatë futjes. Vizitorët mund të regjistrohen te `?page=register`, por regjistrimi publik krijon vetëm llogari `DISPATCHER`. Pasi të hyjë, administratori mund të krijojë administratorë të tjerë nga menyja **Shto administrator**.
-
-## 7. Viktima e tabelave dhe constraint-ave
-
-- `users.email` është unik
-- `drivers.license_number` është unik
-- `vehicles.plate_number` është unik
-- `transports.customer_id` dhe `created_by` janë të detyrueshme
-- `transports.driver_id` dhe `vehicle_id` lejojnë `NULL` derisa të caktohet transporti
-- Të gjitha tabelat përdorin `InnoDB` dhe `utf8mb4`
-- Nuk përmban komanda shkatërruese si `DROP`, `TRUNCATE` ose fshirje të të dhënave ekzistuese
-
-## 8. Si ta përdorësh bazën e të dhënave
-
-Pas importimit, aplikacioni përdor lidhjen e përbashkët në `src/Database/Connection.php`. Konfigurimi merret nga variablat e ambientit `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` dhe `DB_PASSWORD`. Për XAMPP parazgjedhjet janë `127.0.0.1`, `3306`, `transport_management`, `root` dhe fjalëkalim bosh. Mos vendos kredenciale reale në skedarë të versionuar.
-
-Përdorimi i lidhjes në PHP:
-
-```php
-use App\Database\Connection;
-
-$pdo = Connection::create();
-```
-
-Lidhja përdoret nga paneli, hyrja dhe modulet CRUD për klientë, shoferë, automjete dhe transporte. Për XAMPP me kredenciale të parazgjedhura, pas importimit të skemës mund të nisesh aplikacionin me `php -S localhost:8000 -t public`. Kërkohet PHP me shtesat `pdo_mysql` dhe `mbstring` aktive.

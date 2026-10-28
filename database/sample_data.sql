@@ -1,8 +1,8 @@
 USE transport_management;
 
-INSERT INTO users (full_name, email, password_hash, role, is_active, created_at) VALUES
-('Admin User', 'admin@transport.local', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ADMIN', 1, NOW()),
-('Dispatcher User', 'dispatcher@transport.local', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'DISPATCHER', 1, NOW());
+INSERT INTO users (full_name, email, password_hash, role, is_active, email_verified_at, created_at) VALUES
+('Admin User', 'admin@transport.local', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ADMIN', 1, NOW(), NOW()),
+('Dispatcher User', 'dispatcher@transport.local', '$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'DISPATCHER', 1, NOW(), NOW());
 
 INSERT INTO customers (company_name, contact_person, phone, email, address, created_at) VALUES
 ('Albania Logistics', 'Ardit Hoxha', '+355 68 111 1111', 'info@albanialogistics.al', 'Rruga e Durrësit 12, Tirana', NOW()),

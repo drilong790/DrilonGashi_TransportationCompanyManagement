@@ -11,9 +11,22 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('ADMIN', 'DISPATCHER') NOT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
+    email_verified_at DATETIME NULL DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_users_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE email_verifications (
+    user_id INT UNSIGNED NOT NULL,
+    code_hash VARCHAR(255) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    last_sent_at DATETIME NOT NULL,
+    PRIMARY KEY (user_id),
+    CONSTRAINT fk_email_verifications_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE customers (
