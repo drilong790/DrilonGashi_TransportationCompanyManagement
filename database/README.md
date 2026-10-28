@@ -115,4 +115,4 @@ use App\Database\Connection;
 $pdo = Connection::create();
 ```
 
-Lidhja përdoret aktualisht nga kontrolluesi në `public/index.php` për të përgatitur statistikat e panelit. Për XAMPP me kredenciale të parazgjedhura, pas importimit të skemës mund të nisesh aplikacionin me `php -S localhost:8000 -t public`. Kërkohet PHP me shtesën `pdo_mysql` aktive.
+Lidhja përdoret nga paneli dhe modulet CRUD për klientë, shoferë, automjete dhe transporte. Për XAMPP me kredenciale të parazgjedhura, pas importimit të skemës mund të nisesh aplikacionin me `php -S localhost:8000 -t public`. Kërkohet PHP me shtesën `pdo_mysql` aktive.

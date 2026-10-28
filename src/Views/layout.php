@@ -30,7 +30,7 @@
 
             <footer class="footer">
                 <span>Transportation Company Management</span>
-                <span>Skelet fillestar i aplikacionit</span>
+                <span>Menaxhim i transportit</span>
             </footer>
         </main>
     </div>

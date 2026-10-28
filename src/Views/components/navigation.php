@@ -26,5 +26,5 @@
 
 <div class="sidebar-note">
     <span class="sidebar-note-icon" aria-hidden="true">i</span>
-    <p>Modulet janë skelet fillestar. Të dhënat dhe veprimet do të shtohen në fazat pasuese.</p>
+    <p>Menaxho klientët, shoferët, automjetet dhe transportet nga modulet përkatëse.</p>
 </div>

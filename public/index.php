@@ -3,11 +3,14 @@
 declare(strict_types=1);
 
 use App\Database\Connection;
+use App\Modules\CrudModule;
 
 require_once __DIR__ . '/../src/Database/Connection.php';
+require_once __DIR__ . '/../src/Modules/CrudModule.php';
 
 $dashboardStats = null;
 $databaseError = null;
+$moduleData = null;
 
 $pages = [
     'dashboard' => [
@@ -18,30 +21,22 @@ $pages = [
     'transports' => [
         'title' => 'Transportet',
         'description' => 'Planifiko dhe ndiq transportet e kompanisë.',
-        'view' => 'module-placeholder.php',
-        'module_description' => 'Këtu do të shfaqet lista e transporteve dhe veprimet për krijimin ose përditësimin e tyre.',
-        'next_step' => 'Lidhja me tabelën transports dhe krijimi i flow-t të listimit.',
+        'view' => 'module.php',
     ],
     'customers' => [
         'title' => 'Klientët',
         'description' => 'Menaxho informacionin e klientëve të kompanisë.',
-        'view' => 'module-placeholder.php',
-        'module_description' => 'Këtu do të shfaqet lista e klientëve dhe formulari për shtimin ose përditësimin e tyre.',
-        'next_step' => 'Lidhja me tabelën customers dhe krijimi i flow-t të menaxhimit.',
+        'view' => 'module.php',
     ],
     'drivers' => [
         'title' => 'Shoferët',
         'description' => 'Menaxho shoferët dhe statusin e tyre.',
-        'view' => 'module-placeholder.php',
-        'module_description' => 'Këtu do të shfaqet lista e shoferëve dhe statusi i tyre aktiv.',
-        'next_step' => 'Lidhja me tabelën drivers dhe krijimi i flow-t të listimit.',
+        'view' => 'module.php',
     ],
     'vehicles' => [
         'title' => 'Automjetet',
         'description' => 'Menaxho automjetet dhe kapacitetet e tyre.',
-        'view' => 'module-placeholder.php',
-        'module_description' => 'Këtu do të shfaqet lista e automjeteve, targat dhe kapacitetet.',
-        'next_step' => 'Lidhja me tabelën vehicles dhe krijimi i flow-t të listimit.',
+        'view' => 'module.php',
     ],
     'not_found' => [
         'title' => 'Faqja nuk u gjet',
@@ -67,7 +62,24 @@ if (!is_string($pageKey) || !isset($pages[$pageKey])) {
 
 $page = $pages[$pageKey];
 
-if ($pageKey === 'dashboard') {
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+
+if (in_array($pageKey, ['customers', 'drivers', 'vehicles', 'transports'], true)) {
+    try {
+        $pdo = Connection::create();
+        $moduleData = CrudModule::handle($pdo, $pageKey);
+    } catch (PDOException $exception) {
+        error_log("Database request failed for {$pageKey}: " . $exception->getMessage());
+        http_response_code(503);
+        $databaseError = 'Nuk mund të kryhet veprimi për shkak të lidhjes me databazën. Kontrollo që MySQL është aktiv dhe databaza është konfiguruar.';
+    } catch (Throwable $exception) {
+        error_log("Application request failed for {$pageKey}: " . $exception->getMessage());
+        http_response_code(500);
+        $databaseError = 'Ndodhi një gabim gjatë përgatitjes së modulit. Provo përsëri ose kontrollo log-un e PHP-së.';
+    }
+} elseif ($pageKey === 'dashboard') {
     try {
         $pdo = Connection::create();
         $statement = $pdo->query(
