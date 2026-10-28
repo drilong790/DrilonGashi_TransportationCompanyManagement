@@ -32,6 +32,16 @@
                     <span>Shto administrator</span>
                 </a>
             </li>
+            <li>
+                <a
+                    class="navigation-link<?= $pageKey === 'users' ? ' is-active' : '' ?>"
+                    href="?page=users"
+                    <?= $pageKey === 'users' ? 'aria-current="page"' : '' ?>
+                >
+                    <span class="navigation-indicator" aria-hidden="true"></span>
+                    <span>Menaxho llogaritë</span>
+                </a>
+            </li>
         <?php endif; ?>
     </ul>
 </nav>

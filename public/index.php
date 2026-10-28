@@ -68,6 +68,11 @@ $pages = [
         'description' => 'Krijo një llogari të re administratori.',
         'view' => 'add-admin.php',
     ],
+    'users' => [
+        'title' => 'Menaxho llogaritë',
+        'description' => 'Shiko përdoruesit dhe fshi llogari që nuk kanë transport të regjistruar.',
+        'view' => 'users.php',
+    ],
     'not_found' => [
         'title' => 'Faqja nuk u gjet',
         'description' => 'Adresa e kërkuar nuk është e disponueshme.',
@@ -99,6 +104,9 @@ $verificationMessage = null;
 $adminError = null;
 $adminValues = ['full_name' => '', 'email' => ''];
 $adminSuccess = null;
+$accounts = [];
+$accountsError = null;
+$accountsSuccess = null;
 $databaseError = null;
 $dashboardStats = null;
 $moduleData = null;
@@ -304,6 +312,85 @@ try {
                         }
                     }
                 }
+            }
+        } elseif ($pageKey === 'users') {
+            if ($user['role'] !== 'ADMIN') {
+                http_response_code(403);
+                $accountsError = 'Vetëm administratori mund të menaxhojë llogaritë.';
+            } else {
+                $accountsSuccess = $_SESSION['flash_message'] ?? null;
+                unset($_SESSION['flash_message']);
+
+                if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                    $accountId = filter_var(
+                        $_POST['id'] ?? null,
+                        FILTER_VALIDATE_INT,
+                        ['options' => ['min_range' => 1]]
+                    );
+                    if (!Authentication::isValidCsrfToken($_POST['csrf_token'] ?? null)) {
+                        http_response_code(400);
+                        $accountsError = 'Kërkesa skadoi ose nuk është e vlefshme. Rifresko faqen dhe provo përsëri.';
+                    } elseif ($accountId === false) {
+                        http_response_code(422);
+                        $accountsError = 'Llogaria e zgjedhur nuk është e vlefshme.';
+                    } elseif ((int) $accountId === (int) $user['id']) {
+                        http_response_code(422);
+                        $accountsError = 'Nuk mund ta fshish llogarinë me të cilën je kyçur.';
+                    } else {
+                        $accountStatement = $pdo->prepare(
+                            'SELECT id, full_name FROM users WHERE id = :id LIMIT 1'
+                        );
+                        $accountStatement->execute(['id' => $accountId]);
+                        $accountToDelete = $accountStatement->fetch();
+                        if ($accountToDelete === false) {
+                            http_response_code(404);
+                            $accountsError = 'Llogaria nuk u gjet; lista mund të jetë përditësuar.';
+                        } else {
+                            $transportStatement = $pdo->prepare(
+                                'SELECT COUNT(*) FROM transports WHERE created_by = :id'
+                            );
+                            $transportStatement->execute(['id' => $accountId]);
+                            if ((int) $transportStatement->fetchColumn() > 0) {
+                                http_response_code(409);
+                                $accountsError = 'Kjo llogari ka krijuar transporte. Nuk mund të fshihet për të ruajtur historikun e transportit.';
+                            } else {
+                                try {
+                                    $deleteStatement = $pdo->prepare(
+                                        'DELETE FROM users WHERE id = :id AND id <> :current_user_id'
+                                    );
+                                    $deleteStatement->execute([
+                                        'id' => $accountId,
+                                        'current_user_id' => (int) $user['id'],
+                                    ]);
+                                } catch (\PDOException $exception) {
+                                    if ($exception->getCode() !== '23000') {
+                                        throw $exception;
+                                    }
+                                    http_response_code(409);
+                                    $accountsError = 'Llogaria lidhet me të dhëna ekzistuese dhe nuk mund të fshihet.';
+                                }
+
+                                if ($accountsError === null) {
+                                    if ($deleteStatement->rowCount() !== 1) {
+                                        http_response_code(409);
+                                        $accountsError = 'Llogaria nuk u fshi. Rifresko listën dhe provo përsëri.';
+                                    } else {
+                                        $_SESSION['flash_message'] = 'Llogaria u fshi me sukses.';
+                                        header('Location: ?page=users');
+                                        exit;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                $accounts = $pdo->query(
+                    'SELECT u.id, u.full_name, u.email, u.role, u.is_active, u.email_verified_at,
+                        u.created_at, (SELECT COUNT(*) FROM transports t WHERE t.created_by = u.id) AS transport_count
+                    FROM users u
+                    ORDER BY u.role, u.full_name, u.id'
+                )->fetchAll();
             }
         } elseif (in_array($pageKey, ['customers', 'drivers', 'vehicles', 'transports'], true)) {
             $moduleData = CrudModule::handle($pdo, $pageKey, (int) $user['id'], $user['role']);

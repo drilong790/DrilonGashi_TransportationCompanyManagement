@@ -34,7 +34,7 @@ mysql -u root -p transport_management < database/migrations/20261028_add_email_v
 
 Aplikacioni përdor PDO nga `src/Database/Connection.php`. Databaza konfigurohet me variablat `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` dhe `DB_PASSWORD`. Për XAMPP, vlerat e parazgjedhura janë `127.0.0.1`, `3306`, `transport_management`, `root` dhe fjalëkalim bosh. Mos vendos kredenciale reale në skedarë të versionuar.
 
-Për të krijuar administratorin fillestar, përdor `bin/create-user.php` në terminal interaktiv. Ai ruan hash-in e fjalëkalimit dhe e shënon llogarinë si të verifikuar. Përdoruesit e rinj të krijuar përmes regjistrimit ose nga administratori duhet të verifikojnë email-in para hyrjes.
+Për të krijuar administratorin fillestar, përdor `bin/create-user.php` në terminal interaktiv. Ai ruan hash-in e fjalëkalimit dhe e shënon llogarinë si të verifikuar. Përdoruesit e rinj të krijuar përmes regjistrimit ose nga administratori duhet të verifikojnë email-in para hyrjes. Administratorët mund të menaxhojnë llogaritë nga menuja **Menaxho llogaritë**; llogaria aktive nuk mund të fshijë veten dhe llogaritë që kanë krijuar transporte mbrohen për të ruajtur historikun dhe lidhjet në databazë.
 
 ## Konfigurimi i email-it SMTP
 
