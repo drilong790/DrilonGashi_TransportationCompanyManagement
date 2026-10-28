@@ -105,18 +105,14 @@ Pastaj ai hash ruhet në kolumnën `password_hash` e tabelës `users`.
 
 ## 8. Si ta përdorësh bazën e të dhënave
 
-Pas importimit, mund të përdorësh PDO në PHP si:
+Pas importimit, aplikacioni përdor lidhjen e përbashkët në `src/Database/Connection.php`. Konfigurimi merret nga variablat e ambientit `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` dhe `DB_PASSWORD`. Për XAMPP parazgjedhjet janë `127.0.0.1`, `3306`, `transport_management`, `root` dhe fjalëkalim bosh. Mos vendos kredenciale reale në skedarë të versionuar.
+
+Përdorimi i lidhjes në PHP:
 
 ```php
-$pdo = new PDO(
-    'mysql:host=localhost;dbname=transport_management;charset=utf8mb4',
-    'root',
-    '',
-    [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]
-);
+use App\Database\Connection;
+
+$pdo = Connection::create();
 ```
 
-Ky model është i përshtatshëm për XAMPP, ku përdoruesi default i MySQL është zakonisht `root` dhe passwordi është bosh.
+Lidhja përdoret aktualisht nga kontrolluesi në `public/index.php` për të përgatitur statistikat e panelit. Për XAMPP me kredenciale të parazgjedhura, pas importimit të skemës mund të nisesh aplikacionin me `php -S localhost:8000 -t public`. Kërkohet PHP me shtesën `pdo_mysql` aktive.

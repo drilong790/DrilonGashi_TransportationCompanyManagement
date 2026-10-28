@@ -420,6 +420,14 @@ p {
     line-height: 1.5;
 }
 
+.module-card-stat {
+    display: block;
+    margin-top: 8px;
+    color: var(--ink);
+    font-size: 11px;
+    font-weight: 700;
+}
+
 .module-card-link {
     display: flex;
     justify-content: space-between;
@@ -462,6 +470,30 @@ p {
     color: var(--muted);
     font-size: 11px;
     line-height: 1.5;
+}
+
+.database-error {
+    margin-top: 20px;
+    padding: 14px 16px;
+    border: 1px solid #f1c7c7;
+    border-radius: 11px;
+    background: #fff7f7;
+    color: #842d2d;
+}
+
+.database-error strong {
+    font-size: 13px;
+}
+
+.database-error p {
+    margin: 5px 0;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.database-error span {
+    color: #765858;
+    font-size: 11px;
 }
 
 .module-placeholder {

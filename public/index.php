@@ -2,6 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Database\Connection;
+
+require_once __DIR__ . '/../src/Database/Connection.php';
+
+$dashboardStats = null;
+$databaseError = null;
+
 $pages = [
     'dashboard' => [
         'title' => 'Paneli kryesor',
@@ -59,6 +66,25 @@ if (!is_string($pageKey) || !isset($pages[$pageKey])) {
 }
 
 $page = $pages[$pageKey];
+
+if ($pageKey === 'dashboard') {
+    try {
+        $pdo = Connection::create();
+        $statement = $pdo->query(
+            'SELECT
+                (SELECT COUNT(*) FROM transports) AS transports,
+                (SELECT COUNT(*) FROM customers) AS customers,
+                (SELECT COUNT(*) FROM drivers) AS drivers,
+                (SELECT COUNT(*) FROM vehicles) AS vehicles'
+        );
+        $dashboardStats = $statement->fetch();
+    } catch (PDOException $exception) {
+        error_log('Dashboard database query failed: ' . $exception->getMessage());
+        http_response_code(503);
+        $databaseError = 'Nuk mund të lexohen të dhënat nga databaza. Kontrollo që MySQL është aktiv dhe databaza transport_management është importuar.';
+    }
+}
+
 $viewFile = __DIR__ . '/../src/Views/pages/' . $page['view'];
 
 require __DIR__ . '/../src/Views/layout.php';

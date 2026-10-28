@@ -3,8 +3,7 @@
         <p class="card-eyebrow">MIRË SE ERDHE</p>
         <h2>Organizo punën e transportit në një vend.</h2>
         <p>
-            Kjo është baza vizuale e aplikacionit. Modulet janë gati për t'u lidhur me
-            backend-in dhe databazën në hapat e ardhshëm.
+            Paneli lexon përmbledhjen e të dhënave nga databaza e kompanisë.
         </p>
     </div>
     <div class="welcome-art" aria-hidden="true">
@@ -13,6 +12,14 @@
         <span class="art-route-dot"></span>
     </div>
 </div>
+
+<?php if ($databaseError !== null): ?>
+    <div class="database-error" role="alert">
+        <strong>Databaza nuk është e disponueshme</strong>
+        <p><?= htmlspecialchars($databaseError, ENT_QUOTES, 'UTF-8') ?></p>
+        <span>Detajet teknike janë regjistruar në log-un e PHP-së.</span>
+    </div>
+<?php endif; ?>
 
 <div class="section-heading">
     <div>
@@ -27,24 +34,36 @@
         <span class="module-icon module-icon-blue" aria-hidden="true">TR</span>
         <span class="module-card-title">Transportet</span>
         <span class="module-card-description">Planifikimi dhe ndjekja e dërgesave.</span>
+        <?php if ($dashboardStats !== null): ?>
+            <span class="module-card-stat"><?= (int) $dashboardStats['transports'] ?> transporte</span>
+        <?php endif; ?>
         <span class="module-card-link">Hap modulin <span aria-hidden="true">→</span></span>
     </a>
     <a class="module-card" href="?page=customers">
         <span class="module-icon module-icon-violet" aria-hidden="true">KL</span>
         <span class="module-card-title">Klientët</span>
         <span class="module-card-description">Të dhënat dhe kontaktet e klientëve.</span>
+        <?php if ($dashboardStats !== null): ?>
+            <span class="module-card-stat"><?= (int) $dashboardStats['customers'] ?> klientë</span>
+        <?php endif; ?>
         <span class="module-card-link">Hap modulin <span aria-hidden="true">→</span></span>
     </a>
     <a class="module-card" href="?page=drivers">
         <span class="module-icon module-icon-green" aria-hidden="true">SH</span>
         <span class="module-card-title">Shoferët</span>
         <span class="module-card-description">Informacioni dhe disponueshmëria e shoferëve.</span>
+        <?php if ($dashboardStats !== null): ?>
+            <span class="module-card-stat"><?= (int) $dashboardStats['drivers'] ?> shoferë</span>
+        <?php endif; ?>
         <span class="module-card-link">Hap modulin <span aria-hidden="true">→</span></span>
     </a>
     <a class="module-card" href="?page=vehicles">
         <span class="module-icon module-icon-orange" aria-hidden="true">AU</span>
         <span class="module-card-title">Automjetet</span>
         <span class="module-card-description">Flota, targat dhe kapacitetet.</span>
+        <?php if ($dashboardStats !== null): ?>
+            <span class="module-card-stat"><?= (int) $dashboardStats['vehicles'] ?> automjete</span>
+        <?php endif; ?>
         <span class="module-card-link">Hap modulin <span aria-hidden="true">→</span></span>
     </a>
 </div>
@@ -52,7 +71,7 @@
 <div class="progress-note">
     <span class="progress-mark" aria-hidden="true">✓</span>
     <div>
-        <strong>Struktura bazë është gati</strong>
-        <p>Hapi pasues është lidhja e moduleve me databazën dhe shtimi i veprimeve funksionale.</p>
+        <strong>Lidhja me databazën është aktive</strong>
+        <p>Paneli shfaq numrin e regjistrimeve; faqet e moduleve dhe veprimet e tyre do të lidhen në hapat pasues.</p>
     </div>
 </div>
