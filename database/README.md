@@ -30,11 +30,17 @@ Përmes terminalit, kur databaza ekziston:
 mysql -u root -p transport_management < database/migrations/20261028_add_email_verification.sql
 ```
 
+Pas migrimit të verifikimit, ekzekuto `migrations/20261029_add_superadmin_role.sql` për të shtuar rolin `SUPERADMIN` dhe për të promovuar llogarinë `drilon123@gmail.com`. Sigurohu që kjo llogari ekziston para migrimit. Migrimi është i përsëritshëm; çdo llogari tjetër e shënuar `SUPERADMIN` kthehet në `ADMIN`.
+
+```bash
+mysql -u root -p transport_management < database/migrations/20261029_add_superadmin_role.sql
+```
+
 ## Konfigurimi i aplikacionit
 
 Aplikacioni përdor PDO nga `src/Database/Connection.php`. Databaza konfigurohet me variablat `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` dhe `DB_PASSWORD`. Për XAMPP, vlerat e parazgjedhura janë `127.0.0.1`, `3306`, `transport_management`, `root` dhe fjalëkalim bosh. Mos vendos kredenciale reale në skedarë të versionuar.
 
-Për të krijuar administratorin fillestar, përdor `bin/create-user.php` në terminal interaktiv. Ai ruan hash-in e fjalëkalimit dhe e shënon llogarinë si të verifikuar. Përdoruesit e rinj të krijuar përmes regjistrimit ose nga administratori duhet të verifikojnë email-in para hyrjes. Administratorët mund të menaxhojnë llogaritë nga menuja **Menaxho llogaritë**; llogaria aktive nuk mund të fshijë veten dhe llogaritë që kanë krijuar transporte mbrohen për të ruajtur historikun dhe lidhjet në databazë.
+Për konfigurim të ri, krijo fillimisht `drilon123@gmail.com` si `ADMIN` me `bin/create-user.php`, pastaj ekzekuto migrimin e Superadminit. Skripti nuk pranon rolin `SUPERADMIN`; roli caktohet vetëm nga migrimi i adresës së përcaktuar. Llogaria `SUPERADMIN` menaxhon të gjitha modulet dhe mund të ndryshojë emailin/fjalëkalimin e vet ose të llogarive ADMIN/DISPATCHER, si dhe të fshijë llogari ADMIN/DISPATCHER pa transporte të lidhura. Ndryshimi i emailit kërkon ri-verifikim; llogaria Superadmin nuk mund të fshihet. Administratorët e zakonshëm kanë qasje të plotë në të gjitha modulet, mund të krijojnë administratorë të rinj dhe të menaxhojnë vetëm llogaritë DISPATCHER. Llogaria aktive dhe llogaritë që kanë krijuar transporte mbrohen nga fshirja.
 
 ## Konfigurimi i email-it SMTP
 

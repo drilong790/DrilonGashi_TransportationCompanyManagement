@@ -47,13 +47,13 @@ src/
     components/
       navigation.php        Navigimi i përbashkët i aplikacionit
     pages/
-      add-admin.php          Forma për krijimin e administratorëve (vetëm admin)
+      add-admin.php          Forma për krijimin e administratorëve (superadmin/admin)
       dashboard.php         Paneli kryesor dhe lidhjet te modulet
       login.php              Hyrja e përdoruesit
       module.php             Pamja e përbashkët për listat dhe formularët CRUD
       not-found.php          Pamja për adresa të panjohura
       register.php           Regjistrimi publik si dispeçer
-      users.php              Menaxhimi i llogarive (vetëm admin)
+      users.php              Menaxhimi i llogarive (vetëm superadmin)
       verify-email.php       Verifikimi i email-it
     layout.php              Struktura e përbashkët e faqeve
 database/
@@ -77,7 +77,7 @@ Lista e transporteve mund të filtrohet sipas statusit, datës së planifikuar, 
 
 ## Hyrja dhe përdoruesit
 
-Hyrja përdor email dhe fjalëkalim me hash `password_hash()`. Përdoruesit joaktivë nuk mund të hyjnë. Regjistrimi publik krijon vetëm llogari `DISPATCHER`. Administratori i kyçur mund të krijojë administratorë të tjerë përmes opsionit **Shto administrator** në menynë anësore; roli caktohet nga serveri. Administratori mund të menaxhojë të gjitha modulet; dispeçeri mund t’i shohë klientët, shoferët dhe automjetet dhe mund të menaxhojë transportet. Krijuesi i një transporti caktohet automatikisht nga llogaria aktive.
+Hyrja përdor email dhe fjalëkalim me hash `password_hash()`. Përdoruesit joaktivë nuk mund të hyjnë. Regjistrimi publik krijon vetëm llogari `DISPATCHER`. Ekziston një llogari `SUPERADMIN` (`drilon123@gmail.com`) me qasje të plotë dhe menaxhim të llogarive: mund të ndryshojë emailin/fjalëkalimin e llogarisë së vet dhe të administratorëve/dispeçerëve, si dhe të fshijë llogari që nuk kanë transporte të lidhura. Llogaria Superadmin nuk mund të fshihet. Ndryshimi i emailit kërkon verifikimin e adresës së re; llogaria çaktivizohet përkohësisht deri atëherë. Administratorët e zakonshëm kanë qasje në panel dhe të gjitha modulet, mund të krijojnë llogari `ADMIN` si dhe të ndryshojnë emailin/fjalëkalimin ose të fshijnë vetëm llogaritë `DISPATCHER` pa transporte. Ata nuk mund të menaxhojnë llogari administrative. Dispeçerët ruajnë lejet aktuale: shohin klientët, shoferët dhe automjetet dhe mund të menaxhojnë transportet. Krijuesi i një transporti caktohet automatikisht nga llogaria aktive.
 
 Për krijimin e llogarisë së parë, pasi të jetë importuar skema, hape terminalin në direktorinë e projektit dhe nis:
 
@@ -85,6 +85,6 @@ Për krijimin e llogarisë së parë, pasi të jetë importuar skema, hape termi
 /Applications/XAMPP/xamppfiles/bin/php bin/create-user.php
 ```
 
-Skripti kërkon emrin, email-in, rolin dhe fjalëkalimin (fjalëkalimi nuk shfaqet në terminal dhe duhet të ketë të paktën 12 karaktere). Krijo fillimisht një llogari `ADMIN`. Pastaj admini mund të përdorë opsionin e menusë për të krijuar adminë të tjerë. Përdor `http://localhost:8000/?page=register` për regjistrimin e dispeçerëve dhe `http://localhost:8000/?page=login` për hyrjen. Mos i ekspozo kredencialet në dokumentacion ose Git.
+Skripti kërkon emrin, email-in, rolin (`ADMIN` ose `DISPATCHER`) dhe fjalëkalimin (fjalëkalimi nuk shfaqet në terminal dhe duhet të ketë të paktën 12 karaktere). Për instalim të ri, krijo llogarinë `drilon123@gmail.com` si `ADMIN` dhe ekzekuto migrimin `database/migrations/20261029_add_superadmin_role.sql` për ta promovuar. Në instalimin aktual ky migrim e promovon llogarinë ekzistuese. Mos krijo Superadminë të tjerë përmes skriptit ose formave. Përdor `http://localhost:8000/?page=register` për regjistrimin e dispeçerëve dhe `http://localhost:8000/?page=login` për hyrjen. Mos i ekspozo kredencialet në dokumentacion ose Git.
 
 Sesioni përdor cookie `HttpOnly`, `SameSite=Lax`, rotacion të ID-së pas hyrjes dhe token CSRF për hyrje/dalje dhe veprimet e moduleve. Për përdorim publik duhen gjithashtu HTTPS, konfigurim i sigurt i serverit dhe kontrolle të rregullta të sigurisë.

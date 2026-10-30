@@ -22,7 +22,11 @@
                     <?php if ($user !== null): ?>
                         <p class="signed-in-user">
                             <?= htmlspecialchars($user['full_name'], ENT_QUOTES, 'UTF-8') ?>
-                            · <?= $user['role'] === 'ADMIN' ? 'Administrator' : 'Dispeçer' ?>
+                            · <?= match ($user['role']) {
+                                'SUPERADMIN' => 'Superadministrator',
+                                'ADMIN' => 'Administrator',
+                                default => 'Dispeçer',
+                            } ?>
                         </p>
                     <?php endif; ?>
                 </div>

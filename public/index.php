@@ -247,7 +247,10 @@ try {
                     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
                     $destination = $_SESSION['redirect_after_login'] ?? 'dashboard';
                     unset($_SESSION['redirect_after_login']);
-                    $allowedDestinations = array_merge(array_keys($navigationItems), ['not_found']);
+                    $allowedDestinations = array_merge(
+                        array_keys($navigationItems),
+                        ['add-admin', 'users', 'not_found']
+                    );
                     if (!is_string($destination) || !in_array($destination, $allowedDestinations, true)) {
                         $destination = 'dashboard';
                     }
@@ -265,9 +268,9 @@ try {
         }
 
         if ($pageKey === 'add-admin') {
-            if ($user['role'] !== 'ADMIN') {
+            if (!in_array($user['role'], ['SUPERADMIN', 'ADMIN'], true)) {
                 http_response_code(403);
-                $adminError = 'Vetëm administratori mund të krijojë llogari administratori.';
+                $adminError = 'Vetëm administratori ose superadministratori mund të krijojë llogari administratori.';
             } else {
                 $adminSuccess = $_SESSION['flash_message'] ?? null;
                 unset($_SESSION['flash_message']);
@@ -319,14 +322,15 @@ try {
                 }
             }
         } elseif ($pageKey === 'users') {
-            if ($user['role'] !== 'ADMIN') {
+            if (!in_array($user['role'], ['SUPERADMIN', 'ADMIN'], true)) {
                 http_response_code(403);
-                $accountsError = 'Vetëm administratori mund të menaxhojë llogaritë.';
+                $accountsError = 'Nuk ke leje të menaxhosh llogaritë.';
             } else {
                 $accountsSuccess = $_SESSION['flash_message'] ?? null;
                 unset($_SESSION['flash_message']);
 
                 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                    $action = $_POST['account_action'] ?? null;
                     $accountId = filter_var(
                         $_POST['id'] ?? null,
                         FILTER_VALIDATE_INT,
@@ -335,21 +339,116 @@ try {
                     if (!Authentication::isValidCsrfToken($_POST['csrf_token'] ?? null)) {
                         http_response_code(400);
                         $accountsError = 'Kërkesa skadoi ose nuk është e vlefshme. Rifresko faqen dhe provo përsëri.';
+                    } elseif (!is_string($action) || !in_array($action, ['update_email', 'reset_password', 'delete'], true)) {
+                        http_response_code(422);
+                        $accountsError = 'Veprimi i kërkuar nuk është i vlefshëm.';
                     } elseif ($accountId === false) {
                         http_response_code(422);
                         $accountsError = 'Llogaria e zgjedhur nuk është e vlefshme.';
-                    } elseif ((int) $accountId === (int) $user['id']) {
-                        http_response_code(422);
-                        $accountsError = 'Nuk mund ta fshish llogarinë me të cilën je kyçur.';
                     } else {
                         $accountStatement = $pdo->prepare(
-                            'SELECT id, full_name FROM users WHERE id = :id LIMIT 1'
+                            'SELECT id, full_name, email, role FROM users WHERE id = :id LIMIT 1'
                         );
                         $accountStatement->execute(['id' => $accountId]);
                         $accountToDelete = $accountStatement->fetch();
                         if ($accountToDelete === false) {
                             http_response_code(404);
                             $accountsError = 'Llogaria nuk u gjet; lista mund të jetë përditësuar.';
+                        } elseif (
+                            $accountToDelete['role'] === 'SUPERADMIN'
+                            && !(
+                                $user['role'] === 'SUPERADMIN'
+                                && (int) $accountToDelete['id'] === (int) $user['id']
+                            )
+                        ) {
+                            http_response_code(409);
+                            $accountsError = 'Llogaria e superadministratorit është e mbrojtur.';
+                        } elseif ($user['role'] === 'ADMIN' && $accountToDelete['role'] !== 'DISPATCHER') {
+                            http_response_code(403);
+                            $accountsError = 'Administratorët mund të menaxhojnë vetëm llogaritë e dispeçerëve.';
+                        } elseif ($action === 'update_email') {
+                            $email = $_POST['email'] ?? null;
+                            if (
+                                !is_string($email)
+                                || filter_var(trim($email), FILTER_VALIDATE_EMAIL) === false
+                                || mb_strlen(trim($email)) > 150
+                            ) {
+                                http_response_code(422);
+                                $accountsError = 'Shkruaj një adresë email të vlefshme (maksimumi 150 karaktere).';
+                            } elseif (mb_strtolower(trim($email)) === mb_strtolower($accountToDelete['email'])) {
+                                http_response_code(422);
+                                $accountsError = 'Email-i i ri duhet të jetë i ndryshëm nga ai aktual.';
+                            } else {
+                                $newEmail = mb_strtolower(trim($email));
+                                try {
+                                    $updateEmail = $pdo->prepare(
+                                        'UPDATE users
+                                        SET email = :email, is_active = 0, email_verified_at = NULL
+                                        WHERE id = :id
+                                            AND (role <> :protected_role OR id = :current_user_id)'
+                                    );
+                                    $updateEmail->execute([
+                                        'email' => $newEmail,
+                                        'id' => $accountId,
+                                        'protected_role' => 'SUPERADMIN',
+                                        'current_user_id' => (int) $user['id'],
+                                    ]);
+                                } catch (\PDOException $exception) {
+                                    if (($exception->errorInfo[1] ?? null) !== 1062) {
+                                        throw $exception;
+                                    }
+                                    http_response_code(409);
+                                    $accountsError = 'Ky email është përdorur tashmë për një llogari.';
+                                }
+
+                                if ($accountsError === null && $updateEmail->rowCount() === 1) {
+                                    try {
+                                        Authentication::sendVerificationCode(
+                                            $pdo,
+                                            (int) $accountId,
+                                            $newEmail,
+                                            $accountToDelete['full_name']
+                                        );
+                                        $_SESSION['flash_message'] = 'Email-i u ndryshua. Llogaria do të aktivizohet pasi të verifikohet email-i i ri.';
+                                    } catch (\RuntimeException $exception) {
+                                        $_SESSION['flash_message'] = 'Email-i u ndryshua, por kodi i verifikimit nuk u dërgua. Përdoruesi mund ta kërkojë sërish te faqja e verifikimit.';
+                                    }
+                                    header('Location: ?page=users');
+                                    exit;
+                                }
+                            }
+                        } elseif ($action === 'reset_password') {
+                            $password = $_POST['password'] ?? null;
+                            $passwordConfirmation = $_POST['password_confirmation'] ?? null;
+                            if (!is_string($password) || strlen($password) < 12 || strlen($password) > 72) {
+                                http_response_code(422);
+                                $accountsError = 'Fjalëkalimi duhet të ketë të paktën 12 karaktere dhe maksimumi 72 bajte.';
+                            } elseif (
+                                !is_string($passwordConfirmation)
+                                || !hash_equals($password, $passwordConfirmation)
+                            ) {
+                                http_response_code(422);
+                                $accountsError = 'Fjalëkalimet nuk përputhen.';
+                            } else {
+                                $updatePassword = $pdo->prepare(
+                                    'UPDATE users SET password_hash = :password_hash
+                                    WHERE id = :id
+                                        AND (role <> :protected_role OR id = :current_user_id)'
+                                );
+                                $updatePassword->execute([
+                                    'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                                    'id' => $accountId,
+                                    'protected_role' => 'SUPERADMIN',
+                                    'current_user_id' => (int) $user['id'],
+                                ]);
+                                if ($updatePassword->rowCount() === 1) {
+                                    $_SESSION['flash_message'] = 'Fjalëkalimi u ndryshua me sukses.';
+                                    header('Location: ?page=users');
+                                    exit;
+                                }
+                                http_response_code(409);
+                                $accountsError = 'Fjalëkalimi nuk u ndryshua. Rifresko listën dhe provo përsëri.';
+                            }
                         } else {
                             $transportStatement = $pdo->prepare(
                                 'SELECT COUNT(*) FROM transports WHERE created_by = :id'
@@ -361,11 +460,15 @@ try {
                             } else {
                                 try {
                                     $deleteStatement = $pdo->prepare(
-                                        'DELETE FROM users WHERE id = :id AND id <> :current_user_id'
+                                        "DELETE FROM users
+                                        WHERE id = :id AND id <> :current_user_id
+                                            AND role <> 'SUPERADMIN'
+                                            AND (:is_superadmin = 1 OR role = 'DISPATCHER')"
                                     );
                                     $deleteStatement->execute([
                                         'id' => $accountId,
                                         'current_user_id' => (int) $user['id'],
+                                        'is_superadmin' => $user['role'] === 'SUPERADMIN' ? 1 : 0,
                                     ]);
                                 } catch (\PDOException $exception) {
                                     if ($exception->getCode() !== '23000') {
@@ -390,12 +493,23 @@ try {
                     }
                 }
 
-                $accounts = $pdo->query(
+                $accountsStatement = $pdo->prepare(
                     'SELECT u.id, u.full_name, u.email, u.role, u.is_active, u.email_verified_at,
                         u.created_at, (SELECT COUNT(*) FROM transports t WHERE t.created_by = u.id) AS transport_count
                     FROM users u
+                    WHERE (:is_superadmin = 1
+                            AND (u.role <> :protected_role OR u.id = :current_user_id))
+                        OR (:is_admin = 1 AND u.role = :dispatcher_role)
                     ORDER BY u.role, u.full_name, u.id'
-                )->fetchAll();
+                );
+                $accountsStatement->execute([
+                    'is_superadmin' => $user['role'] === 'SUPERADMIN' ? 1 : 0,
+                    'protected_role' => 'SUPERADMIN',
+                    'current_user_id' => (int) $user['id'],
+                    'is_admin' => $user['role'] === 'ADMIN' ? 1 : 0,
+                    'dispatcher_role' => 'DISPATCHER',
+                ]);
+                $accounts = $accountsStatement->fetchAll();
             }
         } elseif (in_array($pageKey, ['customers', 'drivers', 'vehicles', 'transports'], true)) {
             $moduleData = CrudModule::handle($pdo, $pageKey, (int) $user['id'], $user['role']);

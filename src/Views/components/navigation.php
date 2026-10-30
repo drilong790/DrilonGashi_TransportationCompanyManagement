@@ -21,7 +21,7 @@
                 </a>
             </li>
         <?php endforeach; ?>
-        <?php if ($user['role'] === 'ADMIN'): ?>
+        <?php if (in_array($user['role'], ['SUPERADMIN', 'ADMIN'], true)): ?>
             <li>
                 <a
                     class="navigation-link<?= $pageKey === 'add-admin' ? ' is-active' : '' ?>"
@@ -39,7 +39,7 @@
                     <?= $pageKey === 'users' ? 'aria-current="page"' : '' ?>
                 >
                     <span class="navigation-indicator" aria-hidden="true"></span>
-                    <span>Menaxho llogaritë</span>
+                    <span><?= $user['role'] === 'SUPERADMIN' ? 'Menaxho llogaritë' : 'Menaxho dispeçerët' ?></span>
                 </a>
             </li>
         <?php endif; ?>
@@ -49,7 +49,11 @@
 <div class="sidebar-note">
     <div class="session-user">
         <strong><?= htmlspecialchars($user['full_name'], ENT_QUOTES, 'UTF-8') ?></strong>
-        <span><?= $user['role'] === 'ADMIN' ? 'Administrator' : 'Dispeçer' ?></span>
+        <span><?= match ($user['role']) {
+            'SUPERADMIN' => 'Superadministrator',
+            'ADMIN' => 'Administrator',
+            default => 'Dispeçer',
+        } ?></span>
         <?php if ($user['role'] === 'DISPATCHER'): ?>
             <span>Modulet bazë janë vetëm për shikim.</span>
         <?php endif; ?>

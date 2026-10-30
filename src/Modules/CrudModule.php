@@ -119,7 +119,8 @@ final class CrudModule
     public static function handle(PDO $pdo, string $key, int $userId, string $role): array
     {
         $module = self::MODULES[$key];
-        $canManage = $role === 'ADMIN' || $key === 'transports';
+        $canManage = in_array($role, ['SUPERADMIN', 'ADMIN'], true)
+            || ($role === 'DISPATCHER' && $key === 'transports');
         $action = $_GET['action'] ?? 'list';
         $id = self::positiveId($_GET['id'] ?? null);
         $errors = [];

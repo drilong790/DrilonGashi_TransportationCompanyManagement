@@ -102,7 +102,7 @@ JOIN (
     SELECT id
     FROM users
     WHERE is_active = 1
-    ORDER BY (role = 'ADMIN') DESC, id
+    ORDER BY (role IN ('SUPERADMIN', 'ADMIN')) DESC, id
     LIMIT 1
 ) AS creator ON 1 = 1
 WHERE NOT EXISTS (

@@ -41,7 +41,7 @@ final class Authentication
         $statement = $pdo->prepare(
             "SELECT id, full_name, email, role FROM users
             WHERE id = :id AND is_active = 1 AND email_verified_at IS NOT NULL
-                AND role IN ('ADMIN', 'DISPATCHER')
+                AND role IN ('SUPERADMIN', 'ADMIN', 'DISPATCHER')
             LIMIT 1"
         );
         $statement->execute(['id' => $userId]);
@@ -58,7 +58,7 @@ final class Authentication
         $statement = $pdo->prepare(
             "SELECT id, full_name, email, password_hash, role FROM users
             WHERE email = :email AND is_active = 1 AND email_verified_at IS NOT NULL
-                AND role IN ('ADMIN', 'DISPATCHER')
+                AND role IN ('SUPERADMIN', 'ADMIN', 'DISPATCHER')
             LIMIT 1"
         );
         $statement->execute(['email' => $email]);

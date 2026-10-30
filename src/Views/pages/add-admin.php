@@ -4,7 +4,9 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
 ?>
 <div class="module-toolbar">
     <p>Krijo llogari administratori për një person të besuar. Roli caktohet nga serveri, dhe llogaria aktivizohet pasi pronari verifikon email-in.</p>
-    <a class="button button-secondary" href="?page=dashboard">Kthehu te paneli</a>
+    <?php if ($user['role'] === 'SUPERADMIN'): ?>
+        <a class="button button-secondary" href="?page=dashboard">Kthehu te paneli</a>
+    <?php endif; ?>
 </div>
 
 <?php if ($adminSuccess !== null): ?>
@@ -15,7 +17,7 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
     <div class="notice notice-error" role="alert"><?= $escape($adminError) ?></div>
 <?php endif; ?>
 
-<?php if ($user['role'] === 'ADMIN'): ?>
+<?php if (in_array($user['role'], ['SUPERADMIN', 'ADMIN'], true)): ?>
     <form class="record-form auth-admin-form" method="post" action="?page=add-admin">
         <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
         <div class="form-grid">
