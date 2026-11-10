@@ -39,6 +39,9 @@ bin/
 src/
   Auth/
     Authentication.php      Hyrja, sesioni dhe dalja nga sistemi
+  Controllers/
+    AccountController.php   Krijimi dhe menaxhimi i llogarive
+    AuthController.php      Hyrja, regjistrimi dhe verifikimi i email-it
   Database/
     Connection.php          Lidhja e përbashkët me MySQL përmes PDO
   Modules/
@@ -53,7 +56,7 @@ src/
       module.php             Pamja e përbashkët për listat dhe formularët CRUD
       not-found.php          Pamja për adresa të panjohura
       register.php           Regjistrimi publik si dispeçer
-      users.php              Menaxhimi i llogarive (vetëm superadmin)
+      users.php              Menaxhimi i llogarive sipas rolit
       verify-email.php       Verifikimi i email-it
     layout.php              Struktura e përbashkët e faqeve
 database/
