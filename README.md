@@ -88,3 +88,13 @@ Për krijimin e llogarisë së parë, pasi të jetë importuar skema, hape termi
 Skripti kërkon emrin, email-in, rolin (`ADMIN` ose `DISPATCHER`) dhe fjalëkalimin (fjalëkalimi nuk shfaqet në terminal dhe duhet të ketë të paktën 12 karaktere). Për instalim të ri, krijo llogarinë `drilon123@gmail.com` si `ADMIN` dhe ekzekuto migrimin `database/migrations/20261029_add_superadmin_role.sql` për ta promovuar. Në instalimin aktual ky migrim e promovon llogarinë ekzistuese. Mos krijo Superadminë të tjerë përmes skriptit ose formave. Përdor `http://localhost:8000/?page=register` për regjistrimin e dispeçerëve dhe `http://localhost:8000/?page=login` për hyrjen. Mos i ekspozo kredencialet në dokumentacion ose Git.
 
 Sesioni përdor cookie `HttpOnly`, `SameSite=Lax`, rotacion të ID-së pas hyrjes dhe token CSRF për hyrje/dalje dhe veprimet e moduleve. Për përdorim publik duhen gjithashtu HTTPS, konfigurim i sigurt i serverit dhe kontrolle të rregullta të sigurisë.
+
+## Testet automatike
+
+Me MySQL në punë dhe përdoruesin e databazës të lejuar të krijojë/fshijë databaza, ekzekuto nga direktoria kryesore:
+
+```bash
+/Applications/XAMPP/xamppfiles/bin/php tests/run.php
+```
+
+Testet mbulojnë hyrjen, rolet, modulet CRUD dhe menaxhimin e llogarive. Çdo ekzekutim krijon databazë prove me emër unik dhe e fshin në fund; nuk përdor databazën e aplikacionit. Dërgimi SMTP çaktivizohet për procesin e serverit testues, ndaj nuk dërgohen email-e reale. Për konfigurim tjetër të MySQL, cakto `DB_HOST`, `DB_PORT`, `DB_USER` dhe `DB_PASSWORD` para ekzekutimit.
