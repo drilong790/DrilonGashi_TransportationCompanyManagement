@@ -113,6 +113,7 @@ $databaseError = null;
 $dashboardStats = null;
 $dashboardReport = [];
 $dashboardReportTotal = 0;
+$dashboardComparison = null;
 $dashboardReportFrom = date('Y-m-01');
 $dashboardReportTo = date('Y-m-d');
 $dashboardReportError = null;
@@ -204,6 +205,37 @@ try {
                     'date_to' => $dashboardReportTo,
                 ]);
                 $statusCounts = array_column($reportStatement->fetchAll(), 'total', 'status');
+                $periodDays = (int) (new \DateTimeImmutable($dashboardReportFrom))
+                    ->diff(new \DateTimeImmutable($dashboardReportTo))->days + 1;
+                $comparisonTo = (new \DateTimeImmutable($dashboardReportFrom))
+                    ->modify('-1 day')
+                    ->format('Y-m-d');
+                $comparisonFrom = (new \DateTimeImmutable($comparisonTo))
+                    ->modify('-' . ($periodDays - 1) . ' days')
+                    ->format('Y-m-d');
+                $comparisonStatement = $pdo->prepare(
+                    'SELECT status, COUNT(*) AS total
+                    FROM transports
+                    WHERE scheduled_date >= :date_from
+                        AND scheduled_date < DATE_ADD(:date_to, INTERVAL 1 DAY)
+                    GROUP BY status'
+                );
+                $comparisonStatement->execute([
+                    'date_from' => $comparisonFrom . ' 00:00:00',
+                    'date_to' => $comparisonTo,
+                ]);
+                $comparisonCounts = array_column($comparisonStatement->fetchAll(), 'total', 'status');
+                $comparisonTotal = array_sum(array_map('intval', $comparisonCounts));
+                $currentTotal = array_sum(array_map('intval', $statusCounts));
+                $dashboardComparison = [
+                    'from' => $comparisonFrom,
+                    'to' => $comparisonTo,
+                    'total' => $comparisonTotal,
+                    'change' => $currentTotal - $comparisonTotal,
+                    'change_percent' => $comparisonTotal > 0
+                        ? round((($currentTotal - $comparisonTotal) / $comparisonTotal) * 100, 1)
+                        : null,
+                ];
                 $reportLabels = [
                     'PLANNED' => 'Planifikuar',
                     'IN_PROGRESS' => 'Në proces',
@@ -212,7 +244,12 @@ try {
                 ];
                 foreach ($reportLabels as $status => $label) {
                     $total = (int) ($statusCounts[$status] ?? 0);
-                    $dashboardReport[] = ['status' => $status, 'label' => $label, 'total' => $total];
+                    $dashboardReport[] = [
+                        'status' => $status,
+                        'label' => $label,
+                        'total' => $total,
+                        'comparison_total' => (int) ($comparisonCounts[$status] ?? 0),
+                    ];
                     $dashboardReportTotal += $total;
                 }
 

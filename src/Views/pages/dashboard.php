@@ -128,7 +128,7 @@ $dashboardNow = new DateTimeImmutable();
         <div class="notice notice-error" role="alert"><?= htmlspecialchars($dashboardReportError, ENT_QUOTES, 'UTF-8') ?></div>
     <?php endif; ?>
 
-    <form class="filter-card report-filter" method="get" action="">
+    <form class="filter-card report-filter" method="get" action="" data-date-range-form>
         <input type="hidden" name="page" value="dashboard">
         <div class="report-filter-fields">
             <div class="form-field">
@@ -139,6 +139,12 @@ $dashboardNow = new DateTimeImmutable();
                 <label for="report-date-to">Deri më</label>
                 <input id="report-date-to" name="date_to" type="date" value="<?= htmlspecialchars($dashboardReportTo, ENT_QUOTES, 'UTF-8') ?>" required>
             </div>
+        </div>
+        <div class="report-quick-ranges" aria-label="Periudha të shpejta">
+            <span>Periudhë e shpejtë:</span>
+            <button type="button" class="quick-range-button" data-range-days="7">7 ditë</button>
+            <button type="button" class="quick-range-button" data-range-days="30">30 ditë</button>
+            <button type="button" class="quick-range-month">Ky muaj</button>
         </div>
         <div class="filter-actions">
             <button class="button button-primary" type="submit">Gjenero raportin</button>
@@ -159,18 +165,56 @@ $dashboardNow = new DateTimeImmutable();
         <div class="report-bars">
             <?php foreach ($dashboardReport as $reportRow): ?>
                 <?php $barWidth = $dashboardReportTotal > 0 ? (int) round(((int) $reportRow['total'] / $dashboardReportTotal) * 100) : 0; ?>
+                <?php $comparisonBarWidth = $dashboardComparison['total'] > 0 ? (int) round(((int) $reportRow['comparison_total'] / $dashboardComparison['total']) * 100) : 0; ?>
                 <div class="report-bar-row">
                     <div class="report-bar-meta">
                         <span class="report-bar-name"><i class="report-legend report-legend-<?= htmlspecialchars(strtolower($reportRow['status']), ENT_QUOTES, 'UTF-8') ?>"></i><?= htmlspecialchars($reportRow['label'], ENT_QUOTES, 'UTF-8') ?></span>
                         <strong><?= (int) $reportRow['total'] ?><small> · <?= $barWidth ?>%</small></strong>
                     </div>
-                    <div class="report-bar-track" role="progressbar" aria-label="<?= htmlspecialchars($reportRow['label'], ENT_QUOTES, 'UTF-8') ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= $barWidth ?>">
+                    <div class="report-bar-track" role="progressbar" aria-label="<?= htmlspecialchars($reportRow['label'], ENT_QUOTES, 'UTF-8') ?> — periudha aktuale" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= $barWidth ?>">
                         <span class="report-bar-fill report-bar-fill-<?= htmlspecialchars(strtolower($reportRow['status']), ENT_QUOTES, 'UTF-8') ?>" style="--bar-width: <?= $barWidth ?>%"></span>
+                    </div>
+                    <div class="report-comparison-meta">
+                        <span>Periudha krahasuese</span>
+                        <strong><?= (int) $reportRow['comparison_total'] ?><small> · <?= $comparisonBarWidth ?>%</small></strong>
+                    </div>
+                    <div class="report-bar-track report-bar-track-previous" role="progressbar" aria-label="<?= htmlspecialchars($reportRow['label'], ENT_QUOTES, 'UTF-8') ?> — periudha krahasuese" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= $comparisonBarWidth ?>">
+                        <span class="report-bar-fill report-bar-fill-previous report-bar-fill-<?= htmlspecialchars(strtolower($reportRow['status']), ENT_QUOTES, 'UTF-8') ?>" style="--bar-width: <?= $comparisonBarWidth ?>%"></span>
                     </div>
                 </div>
             <?php endforeach; ?>
         </div>
     </div>
+    <?php if ($dashboardComparison !== null): ?>
+        <?php
+        $changeClass = $dashboardComparison['change'] > 0
+            ? 'is-positive'
+            : ($dashboardComparison['change'] < 0 ? 'is-negative' : 'is-neutral');
+        $changeText = $dashboardComparison['change'] > 0
+            ? '+' . (int) $dashboardComparison['change']
+            : (string) (int) $dashboardComparison['change'];
+        ?>
+        <div class="comparison-summary" aria-label="Krahasimi i periudhave">
+            <div class="comparison-period">
+                <span>Periudha aktuale</span>
+                <strong><?= (int) $dashboardReportTotal ?></strong>
+                <small><?= htmlspecialchars($dashboardReportFrom, ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars($dashboardReportTo, ENT_QUOTES, 'UTF-8') ?></small>
+            </div>
+            <span class="comparison-arrow" aria-hidden="true">↔</span>
+            <div class="comparison-period">
+                <span>Periudha paraprake</span>
+                <strong><?= (int) $dashboardComparison['total'] ?></strong>
+                <small><?= htmlspecialchars($dashboardComparison['from'], ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars($dashboardComparison['to'], ENT_QUOTES, 'UTF-8') ?></small>
+            </div>
+            <div class="comparison-change <?= $changeClass ?>">
+                <span>Ndryshimi</span>
+                <strong><?= $changeText ?></strong>
+                <small><?= $dashboardComparison['change_percent'] === null
+                    ? 'pa bazë krahasimi'
+                    : (($dashboardComparison['change_percent'] > 0 ? '+' : '') . $dashboardComparison['change_percent'] . '%') ?></small>
+            </div>
+        </div>
+    <?php endif; ?>
     <p class="report-period">
         Periudha: <?= htmlspecialchars($dashboardReportFrom, ENT_QUOTES, 'UTF-8') ?>
         — <?= htmlspecialchars($dashboardReportTo, ENT_QUOTES, 'UTF-8') ?>

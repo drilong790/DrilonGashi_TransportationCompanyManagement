@@ -30,7 +30,7 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
 <?php else: ?>
 <?php if (in_array($user['role'], ['SUPERADMIN', 'ADMIN'], true)): ?>
     <div class="table-card">
-            <div class="table-scroll">
+            <div class="table-scroll" data-table-enhancement>
                 <table>
                     <thead>
                         <tr>
@@ -39,7 +39,7 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
                             <th scope="col">Roli</th>
                             <th scope="col">Gjendja</th>
                             <th scope="col">Transporte të krijuara</th>
-                            <th scope="col">Menaxhimi</th>
+                            <th scope="col" data-sortable="false">Menaxhimi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -88,7 +88,7 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
                                         <?php elseif ($hasTransports): ?>
                                             <span title="Fshirja do të dëmtonte historikun e transporteve">Fshirja bllokohet nga historiku i transporteve.</span>
                                         <?php else: ?>
-                                            <form method="post" action="?page=users" onsubmit="return confirm('Je i sigurt që dëshiron ta fshish këtë llogari? Ky veprim nuk mund të zhbëhet.')">
+                                            <form method="post" action="?page=users" data-confirm="Je i sigurt që dëshiron ta fshish këtë llogari? Ky veprim nuk mund të zhbëhet.">
                                                 <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
                                                 <input type="hidden" name="id" value="<?= (int) $account['id'] ?>">
                                                 <input type="hidden" name="account_action" value="delete">

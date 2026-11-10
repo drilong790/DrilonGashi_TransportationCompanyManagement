@@ -314,12 +314,16 @@ try {
 
     $dashboard = $admin->get('/?page=dashboard');
     expectStatus($dashboard, 200, 'ADMIN can open dashboard');
+    expectContains($dashboard['body'], 'mobile-menu-toggle', 'Dashboard exposes the accessible mobile menu');
+    expectContains($dashboard['body'], 'assets/app.js?v=20261110', 'Dashboard loads shared frontend behavior');
     foreach (['Transportet', 'Klientët', 'Shoferët', 'Automjetet'] as $label) {
         expectContains($dashboard['body'], $label, "ADMIN navigation includes {$label}");
     }
     foreach (['transports', 'customers', 'drivers', 'vehicles'] as $page) {
         expectStatus($admin->get("/?page={$page}"), 200, "ADMIN can open {$page} module");
     }
+    $appScript = $admin->get('/assets/app.js');
+    expectStatus($appScript, 200, 'Shared frontend script is served');
 
     $modulePage = $admin->get('/?page=customers');
     $response = $admin->post('/?page=customers', [
@@ -345,6 +349,54 @@ try {
         'customer_id' => $customerId,
         'created_by' => $historyDispatcherId,
     ]);
+
+    $reportFixture = $pdo->prepare(
+        'INSERT INTO transports
+            (customer_id, created_by, pickup_address, destination_address, cargo_description, scheduled_date, status)
+        VALUES
+            (:customer_id, :created_by, :pickup_address, :destination_address, :cargo_description, :scheduled_date, :status)'
+    );
+    foreach ([
+        ['2025-01-02 09:00:00', 'PLANNED', 'Report fixture'],
+        ['2025-01-03 09:00:00', 'COMPLETED', 'Report fixture'],
+        ['2024-12-30 09:00:00', 'IN_PROGRESS', 'Outside report fixture'],
+    ] as [$scheduledDate, $status, $cargoDescription]) {
+        $reportFixture->execute([
+            'customer_id' => $customerId,
+            'created_by' => $adminId,
+            'pickup_address' => 'Report pickup',
+            'destination_address' => 'Report destination',
+            'cargo_description' => $cargoDescription,
+            'scheduled_date' => $scheduledDate,
+            'status' => $status,
+        ]);
+    }
+
+    $comparisonReport = $admin->get(
+        '/?page=dashboard&date_from=2025-01-01&date_to=2025-01-03'
+    );
+    expectStatus($comparisonReport, 200, 'Dashboard accepts report date ranges');
+    expectContains($comparisonReport['body'], '2 gjithsej', 'Report totals the selected period');
+    expectContains($comparisonReport['body'], '2024-12-29 — 2024-12-31', 'Report shows the equal previous period');
+    expectContains($comparisonReport['body'], '100%', 'Report calculates percentage change from the previous period');
+    expectContains($comparisonReport['body'], 'Eksporto CSV', 'Report exposes CSV export');
+
+    $emptyComparisonReport = $admin->get(
+        '/?page=dashboard&date_from=2025-02-01&date_to=2025-02-03'
+    );
+    expectStatus($emptyComparisonReport, 200, 'Dashboard supports empty report periods');
+    expectContains($emptyComparisonReport['body'], 'pa bazë krahasimi', 'Report explains percentage changes when the previous period is empty');
+
+    $reportCsv = $admin->get(
+        '/?page=dashboard&export=csv&date_from=2025-01-01&date_to=2025-01-03'
+    );
+    expectStatus($reportCsv, 200, 'Dashboard report can be exported as CSV');
+    expectContains($reportCsv['body'], 'Report fixture', 'CSV includes transports from the selected period');
+    expectNotContains($reportCsv['body'], 'Outside report fixture', 'CSV excludes transports outside the selected period');
+
+    $transportList = $admin->get('/?page=transports');
+    expectContains($transportList['body'], 'data-table-enhancement', 'Transport results expose client-side table controls');
+    expectContains($transportList['body'], 'data-confirm=', 'Delete actions expose confirmation prompts');
 
     $adminAccountsPage = $admin->get('/?page=users');
     expectStatus($adminAccountsPage, 200, 'ADMIN can open account management');

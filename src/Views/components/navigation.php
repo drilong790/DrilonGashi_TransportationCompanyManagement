@@ -1,13 +1,25 @@
-<a class="brand" href="?page=dashboard" aria-label="Transportation Company Management - paneli kryesor">
-    <span class="brand-mark" aria-hidden="true">TC</span>
-    <span class="brand-copy">
-        <strong>Transporti</strong>
-        <span>Company management</span>
-    </span>
-</a>
+<div class="sidebar-brand-row">
+    <a class="brand" href="?page=dashboard" aria-label="Transportation Company Management - paneli kryesor">
+        <span class="brand-mark" aria-hidden="true">TC</span>
+        <span class="brand-copy">
+            <strong>Transporti</strong>
+            <span>Company management</span>
+        </span>
+    </a>
+    <button
+        class="mobile-menu-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="primary-navigation"
+        aria-label="Hap menynë"
+    >
+        <span aria-hidden="true">☰</span>
+        <span>Menuja</span>
+    </button>
+</div>
 
 <p class="navigation-label">MENUJA</p>
-<nav>
+<nav id="primary-navigation" aria-label="Faqet e aplikacionit">
     <ul class="navigation-list">
         <?php foreach ($navigationItems as $key => $label): ?>
             <li>

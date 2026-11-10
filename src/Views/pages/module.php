@@ -147,7 +147,7 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
                 <p><?= $pageKey === 'transports' ? 'Ndrysho kriteret e kërkimit ose pastro filtrat.' : 'Shto regjistrin e parë për modulin ' . $escape(mb_strtolower($module['title'])) . '.' ?></p>
             </div>
         <?php else: ?>
-            <div class="table-scroll">
+            <div class="table-scroll" data-table-enhancement>
                 <table>
                     <thead>
                         <tr>
@@ -155,7 +155,7 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
                                 <th scope="col"><?= $escape($label) ?></th>
                             <?php endforeach; ?>
                             <?php if ($moduleData['canManage']): ?>
-                                <th scope="col">Veprimet</th>
+                                <th scope="col" data-sortable="false">Veprimet</th>
                             <?php endif; ?>
                         </tr>
                     </thead>
@@ -169,7 +169,7 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
                                 <td>
                                     <div class="row-actions">
                                         <a class="text-action" href="?page=<?= urlencode($pageKey) ?>&amp;action=edit&amp;id=<?= (int) $row['id'] ?>">Ndrysho</a>
-                                        <form method="post" action="?page=<?= urlencode($pageKey) ?>" onsubmit="return confirm('Je i sigurt që dëshiron ta fshish këtë regjistër?')">
+                                        <form method="post" action="?page=<?= urlencode($pageKey) ?>" data-confirm="Je i sigurt që dëshiron ta fshish këtë regjistër? Ky veprim nuk mund të zhbëhet.">
                                             <input type="hidden" name="csrf_token" value="<?= $escape($moduleData['csrfToken']) ?>">
                                             <input type="hidden" name="action" value="delete">
                                             <input type="hidden" name="id" value="<?= (int) $row['id'] ?>">

@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#f5f7fb">
     <title><?= htmlspecialchars($page['title'], ENT_QUOTES, 'UTF-8') ?> | Transporti</title>
-    <link rel="stylesheet" href="assets/app.css">
+    <link rel="stylesheet" href="assets/app.css?v=20261110">
+    <script src="assets/app.js?v=20261110" defer></script>
 </head>
 <body>
     <div class="app-shell">
-        <aside class="sidebar" aria-label="Navigimi kryesor">
+        <aside class="sidebar" id="primary-sidebar" aria-label="Navigimi kryesor">
             <?php require __DIR__ . '/components/navigation.php'; ?>
         </aside>
 
@@ -53,5 +54,16 @@
             </footer>
         </main>
     </div>
+    <dialog class="confirm-dialog" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message">
+        <div class="confirm-dialog-content">
+            <span class="confirm-dialog-icon" aria-hidden="true">!</span>
+            <h2 id="confirm-dialog-title">Konfirmo veprimin</h2>
+            <p id="confirm-dialog-message"></p>
+            <div class="confirm-dialog-actions">
+                <button class="button button-secondary" type="button" data-confirm-cancel>Anulo</button>
+                <button class="button button-danger" type="button" data-confirm-submit>Vazhdo</button>
+            </div>
+        </div>
+    </dialog>
 </body>
 </html>
