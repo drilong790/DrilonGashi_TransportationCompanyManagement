@@ -1,0 +1,519 @@
+.app-page {
+    color-scheme: dark;
+    --app-bg: #07111b;
+    --app-surface: #0c1822;
+    --app-surface-raised: #101e28;
+    --app-border: #ffffff17;
+    --app-text: #f0eee8;
+    --app-muted: #9aa7ad;
+    --app-amber: #f5ad4f;
+    --app-amber-light: #ffd18a;
+    --app-danger: #e7a29a;
+    --app-success: #9bcbaa;
+    --intro-display: "Manrope", "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background:
+        radial-gradient(ellipse at 75% 5%, #14232b55 0, transparent 40rem),
+        var(--app-bg);
+    color: var(--app-text);
+}
+
+.app-page .sidebar {
+    border-color: #ffffff13;
+    background: #09141df2;
+    box-shadow: 12px 0 42px #00000012;
+}
+
+.app-page .brand-mark {
+    border: 1px solid #f5ad4f45;
+    background: #f5ad4f12;
+    color: var(--app-amber);
+}
+
+.app-page .brand-mark img {
+    display: block;
+    width: 30px;
+    height: 30px;
+}
+
+.app-page .brand-copy strong {
+    color: #f1efe8;
+}
+
+.app-page .brand-copy span,
+.app-page .navigation-label {
+    color: #87949b;
+}
+
+.app-page .navigation-link {
+    color: #a4afb3;
+}
+
+.app-page .navigation-link:hover {
+    background: #ffffff0b;
+    color: #fff;
+}
+
+.app-page .navigation-link.is-active {
+    background: #f5ad4f14;
+    color: var(--app-amber-light);
+}
+
+.app-page .navigation-link.is-active::before {
+    background: var(--app-amber);
+    box-shadow: 0 0 12px #f5ad4f75;
+}
+
+.app-page .navigation-indicator {
+    border-color: #718087;
+}
+
+.app-page .is-active .navigation-indicator {
+    border-color: var(--app-amber);
+    background: var(--app-amber);
+}
+
+.app-page .sidebar-note {
+    border-color: #ffffff16;
+    background: #ffffff08;
+}
+
+.app-page .session-user strong {
+    color: #e7e8e1;
+}
+
+.app-page .session-user > span {
+    color: #9aa7ad;
+}
+
+.app-page .session-user button {
+    color: var(--app-amber-light);
+}
+
+.app-page .session-user button:hover {
+    color: #ffe3b5;
+}
+
+.app-page .main-content,
+.app-page .page-header h1 {
+    color: var(--app-text);
+}
+
+.app-page .page-header .eyebrow,
+.app-page .section-heading .eyebrow,
+.app-page .dashboard-section-heading .eyebrow {
+    color: #d3a25c;
+}
+
+.app-page .page-description,
+.app-page .signed-in-user {
+    color: var(--app-muted);
+}
+
+.app-page .environment-badge,
+.app-page .status-badge,
+.app-page .module-count {
+    border-color: #ffffff1b;
+    background: #ffffff08;
+    color: #b7c0c0;
+    box-shadow: none;
+}
+
+.app-page .environment-badge span {
+    background: #8fbd9b;
+    box-shadow: 0 0 10px #8fbd9b7a;
+}
+
+.app-page .section-heading h2 {
+    color: #eeeDE6;
+}
+
+.app-page .module-toolbar p {
+    color: #aeb9bb;
+}
+
+.app-page .module-card {
+    border-color: var(--app-border);
+    background: linear-gradient(145deg, #101e28, #0c1821);
+    box-shadow: 0 8px 22px #00000013;
+}
+
+.app-page .module-card::after {
+    border-color: #f5ad4f18;
+}
+
+.app-page .module-card:hover {
+    transform: translateY(-4px);
+    border-color: #f5ad4f50;
+    background: linear-gradient(145deg, #14242d, #0e1a23);
+    box-shadow: 0 16px 34px #0000002a, 0 0 24px #f5ad4f0b;
+}
+
+.app-page .module-card:hover::after {
+    border-color: #f5ad4f38;
+}
+
+.app-page .module-icon {
+    border-color: #f5ad4f2e;
+    background: #f5ad4f12;
+    color: var(--app-amber-light);
+    box-shadow: none;
+}
+
+.app-page .module-icon-violet,
+.app-page .module-icon-green,
+.app-page .module-icon-orange {
+    border-color: #ffffff1c;
+    background: #ffffff08;
+    color: #d5bd98;
+}
+
+.app-page .module-card-title {
+    color: #f0eee8;
+}
+
+.app-page .module-card-description {
+    color: #9ba8ac;
+}
+
+.app-page .module-card-stat {
+    color: #c1a06e;
+}
+
+.app-page .module-card-link {
+    color: var(--app-amber-light);
+}
+
+.app-page .filter-card,
+.app-page .record-form,
+.app-page .table-card {
+    border-color: var(--app-border);
+    border-radius: 12px;
+    background: #0c1822;
+    box-shadow: 0 9px 26px #00000016;
+}
+
+.app-page .filter-card {
+    background: #101e28;
+}
+
+.app-page .form-field label {
+    color: #c1c9c7;
+}
+
+.app-page .form-field input,
+.app-page .form-field select,
+.app-page .form-field textarea,
+.app-page .account-management-form input {
+    border-color: #ffffff20;
+    background: #09151e;
+    color: #f0eee8;
+    color-scheme: dark;
+}
+
+.app-page .form-field input:hover,
+.app-page .form-field select:hover,
+.app-page .form-field textarea:hover,
+.app-page .account-management-form input:hover {
+    border-color: #ffffff3b;
+}
+
+.app-page .form-field input:focus,
+.app-page .form-field select:focus,
+.app-page .form-field textarea:focus,
+.app-page .account-management-form input:focus {
+    border-color: #d8a254;
+    outline: 0;
+    background: #08151f;
+    box-shadow: 0 0 0 3px #f5ad4f20;
+}
+
+.app-page .form-field input::placeholder,
+.app-page .form-field textarea::placeholder,
+.app-page .account-management-form input::placeholder {
+    color: #77868b;
+}
+
+.app-page .button-primary {
+    border-color: #f5ad4f55;
+    background: var(--app-amber);
+    box-shadow: 0 6px 16px #f5ad4f1c;
+    color: #17212a;
+}
+
+.app-page .button-primary:hover {
+    background: #ffc574;
+    box-shadow: 0 9px 20px #f5ad4f2d;
+}
+
+.app-page .button-secondary {
+    border-color: #ffffff23;
+    background: #ffffff08;
+    color: #c0c9c7;
+}
+
+.app-page .button-secondary:hover {
+    border-color: #f5ad4f5c;
+    background: #f5ad4f12;
+    color: var(--app-amber-light);
+}
+
+.app-page .notice-success {
+    border-color: #6ea17d4a;
+    background: #274c3938;
+    color: #a9d2b4;
+}
+
+.app-page .notice-error,
+.app-page .database-error {
+    border-color: #9c54504f;
+    background: #652e2a36;
+    color: #f0b5aa;
+}
+
+.app-page .notice {
+    box-shadow: none;
+}
+
+.app-page .database-error p,
+.app-page .database-error span {
+    color: #e0b5ac;
+}
+
+.app-page .table-scroll th {
+    border-bottom-color: #ffffff16;
+    background: #101e28;
+    color: #a6b1b2;
+}
+
+.app-page .table-scroll td {
+    border-bottom-color: #ffffff11;
+    color: #c2cbca;
+}
+
+.app-page .table-scroll tbody tr {
+    transition: background-color 150ms ease;
+}
+
+.app-page .table-scroll tbody tr:hover {
+    background: #ffffff08;
+}
+
+.app-page .table-scroll tr:last-child td {
+    border-bottom-color: transparent;
+}
+
+.app-page .table-tools {
+    border-bottom-color: #ffffff16;
+    background: #101e28;
+}
+
+.app-page .table-search-label,
+.app-page .table-page-size-label {
+    color: #bdc7c5;
+}
+
+.app-page .table-search-input,
+.app-page .table-page-size {
+    border-color: #ffffff20;
+    background: #09151e;
+    color: #f0eee8;
+    color-scheme: dark;
+}
+
+.app-page .table-search-input:focus,
+.app-page .table-page-size:focus {
+    border-color: #d8a254;
+    outline-color: #f5ad4f2b;
+}
+
+.app-page .table-result-count,
+.app-page .table-page-summary {
+    color: #a4afb1;
+}
+
+.app-page .table-sort-button {
+    color: inherit;
+}
+
+.app-page .table-sort-button:hover,
+.app-page th[aria-sort="ascending"] .table-sort-indicator,
+.app-page th[aria-sort="descending"] .table-sort-indicator {
+    color: var(--app-amber-light);
+}
+
+.app-page .table-pagination {
+    border-top-color: #ffffff16;
+    background: #0c1822;
+}
+
+.app-page .table-page-button,
+.app-page .quick-range-button,
+.app-page .quick-range-month {
+    border-color: #ffffff23;
+    background: #ffffff08;
+    color: #c0c9c7;
+}
+
+.app-page .table-page-button:hover:not(:disabled),
+.app-page .quick-range-button:hover,
+.app-page .quick-range-month:hover {
+    border-color: #f5ad4f5c;
+    background: #f5ad4f12;
+    color: var(--app-amber-light);
+}
+
+.app-page .table-no-results,
+.app-page .empty-state {
+    color: #aab5b5 !important;
+}
+
+.app-page .table-limit-note,
+.app-page .report-export-row {
+    color: #a4afb1;
+}
+
+.app-page .text-action {
+    color: var(--app-amber-light);
+}
+
+.app-page .text-action:hover {
+    color: #ffe3b5;
+}
+
+.app-page .text-action-danger {
+    color: #e7a29a;
+}
+
+.app-page .text-action-danger:hover {
+    color: #ffc1b7;
+}
+
+.app-page .account-management-actions > span {
+    color: #a4afb1;
+}
+
+.app-page .account-management-form button {
+    color: #17212a;
+}
+
+.app-page .account-management-form .button-secondary {
+    color: #c0c9c7;
+}
+
+.app-page .footer {
+    color: #74838a;
+}
+
+.app-page .confirm-dialog {
+    border-color: #ffffff24;
+    background: #0c1822;
+    color: var(--app-text);
+}
+
+.app-page .confirm-dialog h2 {
+    color: #f2f0e9;
+}
+
+.app-page .confirm-dialog p {
+    color: #aab5b5;
+}
+
+.app-page .confirm-dialog .button-secondary {
+    color: #c0c9c7;
+}
+
+.app-page .confirm-dialog-icon {
+    border: 1px solid #f5ad4f2e;
+    background: #f5ad4f12;
+    color: var(--app-amber-light);
+}
+
+.app-page .confirm-dialog::backdrop {
+    background: #03090fc4;
+}
+
+.app-page .module-placeholder {
+    border-color: var(--app-border);
+    border-radius: 14px;
+    background: #0c1822;
+    color: var(--app-text);
+}
+
+.app-page .module-placeholder h2 {
+    color: #f0eee8;
+}
+
+.app-page .module-placeholder p {
+    color: #a4afb1;
+}
+
+.app-page .module-placeholder .placeholder-icon {
+    border-color: #f5ad4f2e;
+    background: #f5ad4f12;
+    color: var(--app-amber-light);
+}
+
+.app-page .button-link {
+    border-color: #f5ad4f55;
+    background: var(--app-amber);
+    color: #17212a;
+}
+
+.app-page .button-link:hover {
+    background: #ffc574;
+}
+
+.app-page :focus-visible {
+    outline-color: var(--app-amber);
+}
+
+@media (max-width: 700px) {
+    .app-page .sidebar {
+        border-bottom-color: #ffffff16;
+        background: #09141df7;
+    }
+
+    .app-page .mobile-menu-toggle {
+        border-color: #ffffff24;
+        background: #ffffff09;
+        color: #e5e8e3;
+    }
+
+    .app-page .mobile-menu-toggle:hover,
+    .app-page .mobile-menu-toggle[aria-expanded="true"] {
+        border-color: #f5ad4f4a;
+        background: #f5ad4f10;
+        color: var(--app-amber-light);
+    }
+
+    .app-page .navigation-link {
+        color: #aab4b6;
+    }
+
+    .app-page .navigation-link:hover,
+    .app-page .navigation-link.is-active {
+        background: #f5ad4f12;
+        color: var(--app-amber-light);
+    }
+
+    .app-page .sidebar-note {
+        border-top-color: #ffffff1a;
+    }
+
+    .app-page .session-user button {
+        border-color: #ffffff25;
+        color: var(--app-amber-light);
+    }
+
+    .app-page .table-pagination {
+        background: #0c1822;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-page .module-card,
+    .app-page .dashboard-hero,
+    .app-page .metric-card {
+        animation: none;
+    }
+}

@@ -1,6 +1,6 @@
 <div class="sidebar-brand-row">
     <a class="brand" href="?page=dashboard" aria-label="Transportation Company Management - paneli kryesor">
-        <span class="brand-mark" aria-hidden="true">TC</span>
+        <span class="brand-mark" aria-hidden="true"><img src="assets/brand-symbol.svg?v=20261110" alt=""></span>
         <span class="brand-copy">
             <strong>Transporti</strong>
             <span>Company management</span>

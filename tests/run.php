@@ -295,11 +295,38 @@ try {
     }
 
     $guest = new TestBrowser($baseUrl);
+    $intro = $guest->get('/');
+    expectStatus($intro, 200, 'Public root opens the intro page without authentication');
+    expectContains($intro['body'], 'Çdo rrugë.', 'Intro presents the transport management platform');
+    expectContains($intro['body'], 'href="?page=login"', 'Intro links to the existing login page');
+    expectContains($intro['body'], 'data-journey', 'Intro includes the scroll-linked journey');
+    expectContains($intro['body'], 'assets/brand-symbol.svg?v=20261110', 'Intro uses the shared transport logo');
+    expectStatus($guest->get('/assets/brand-symbol.svg'), 200, 'Shared transport logo is served');
+    expectStatus($guest->get('/assets/intro.css'), 200, 'Intro styles are served');
+    expectStatus($guest->get('/assets/intro.js'), 200, 'Intro scroll behavior is served');
+
+    $privateDashboard = $guest->get('/?page=dashboard');
+    expectStatus($privateDashboard, 302, 'Dashboard remains protected behind authentication');
+    expectLocation($privateDashboard, '?page=login', 'Unauthenticated dashboard access redirects to login');
+
     $response = $guest->get('/?page=users');
     expectStatus($response, 302, 'Unauthenticated account-management access is redirected');
     expectLocation($response, '?page=login', 'The guest is redirected to login');
 
     $loginPage = $guest->get('/?page=login');
+    expectStatus($loginPage, 200, 'Unauthenticated visitors can open the login form');
+    expectContains($loginPage['body'], 'action="?page=login"', 'Login form submits credentials to the login route');
+    expectContains($loginPage['body'], 'assets/login.css?v=20261110', 'Login page loads the matching intro theme');
+    expectContains($loginPage['body'], 'assets/brand-symbol.svg?v=20261110', 'Login uses the shared transport logo');
+    expectContains($loginPage['body'], 'Hyr në platformë', 'Login form uses the intro call-to-action');
+    expectStatus($guest->get('/assets/login.css'), 200, 'Login theme stylesheet is served');
+    $registerPage = $guest->get('/?page=register');
+    expectStatus($registerPage, 200, 'Visitors can open the themed registration page');
+    expectContains($registerPage['body'], 'class="login-page auth-page"', 'Registration uses the matching authentication theme');
+    expectContains($registerPage['body'], 'assets/brand-symbol.svg?v=20261110', 'Registration uses the shared transport logo');
+    $verificationPage = $guest->get('/?page=verify-email');
+    expectStatus($verificationPage, 200, 'Visitors can open the themed email verification page');
+    expectContains($verificationPage['body'], 'class="login-page auth-page"', 'Email verification uses the matching authentication theme');
     $response = $guest->post('/?page=login', [
         'csrf_token' => $guest->csrfToken($loginPage['body']),
         'email' => $adminEmail,
@@ -314,13 +341,24 @@ try {
 
     $dashboard = $admin->get('/?page=dashboard');
     expectStatus($dashboard, 200, 'ADMIN can open dashboard');
+    expectContains($dashboard['body'], 'class="app-page dashboard-page"', 'Dashboard uses the shared and dedicated visual themes');
+    expectContains($dashboard['body'], 'assets/brand-symbol.svg?v=20261110', 'Dashboard uses the shared transport logo');
+    expectContains($dashboard['body'], 'assets/dashboard.css?v=20261110', 'Dashboard loads its dedicated stylesheet');
+    expectContains($dashboard['body'], 'assets/app-theme.css?v=20261110', 'Dashboard also loads the shared application theme');
+    expectStatus($admin->get('/assets/dashboard.css'), 200, 'Dashboard theme stylesheet is served');
+    expectStatus($admin->get('/assets/app-theme.css'), 200, 'Shared application theme stylesheet is served');
+    $authenticatedLogin = $admin->get('/?page=login');
+    expectStatus($authenticatedLogin, 302, 'An already authenticated session is redirected from login');
+    expectLocation($authenticatedLogin, '?page=dashboard', 'Authenticated login-page redirect uses the existing session');
     expectContains($dashboard['body'], 'mobile-menu-toggle', 'Dashboard exposes the accessible mobile menu');
     expectContains($dashboard['body'], 'assets/app.js?v=20261110', 'Dashboard loads shared frontend behavior');
     foreach (['Transportet', 'Klientët', 'Shoferët', 'Automjetet'] as $label) {
         expectContains($dashboard['body'], $label, "ADMIN navigation includes {$label}");
     }
     foreach (['transports', 'customers', 'drivers', 'vehicles'] as $page) {
-        expectStatus($admin->get("/?page={$page}"), 200, "ADMIN can open {$page} module");
+        $moduleResponse = $admin->get("/?page={$page}");
+        expectStatus($moduleResponse, 200, "ADMIN can open {$page} module");
+        expectContains($moduleResponse['body'], 'class="app-page"', "{$page} module uses the shared application theme");
     }
     $appScript = $admin->get('/assets/app.js');
     expectStatus($appScript, 200, 'Shared frontend script is served');
@@ -400,6 +438,7 @@ try {
 
     $adminAccountsPage = $admin->get('/?page=users');
     expectStatus($adminAccountsPage, 200, 'ADMIN can open account management');
+    expectContains($adminAccountsPage['body'], 'assets/app-theme.css?v=20261110', 'Account management loads the shared application theme');
     expectContains($adminAccountsPage['body'], $dispatcherEmail, 'ADMIN sees dispatcher accounts');
     expectContains($adminAccountsPage['body'], $historyDispatcherEmail, 'ADMIN sees dispatcher with transport history');
     expectNotContains($adminAccountsPage['body'], $adminEmail, 'ADMIN cannot see own ADMIN account');

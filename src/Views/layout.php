@@ -3,12 +3,16 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f5f7fb">
+    <meta name="theme-color" content="#07111b">
     <title><?= htmlspecialchars($page['title'], ENT_QUOTES, 'UTF-8') ?> | Transporti</title>
     <link rel="stylesheet" href="assets/app.css?v=20261110">
+    <link rel="stylesheet" href="assets/app-theme.css?v=20261110">
+    <?php if ($pageKey === 'dashboard'): ?>
+        <link rel="stylesheet" href="assets/dashboard.css?v=20261110">
+    <?php endif; ?>
     <script src="assets/app.js?v=20261110" defer></script>
 </head>
-<body>
+<body class="app-page<?= $pageKey === 'dashboard' ? ' dashboard-page' : '' ?>">
     <div class="app-shell">
         <aside class="sidebar" id="primary-sidebar" aria-label="Navigimi kryesor">
             <?php require __DIR__ . '/components/navigation.php'; ?>

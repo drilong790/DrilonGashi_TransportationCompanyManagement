@@ -25,6 +25,11 @@ session_set_cookie_params([
 session_start();
 
 $pages = [
+    'intro' => [
+        'title' => 'Transporti, nën kontroll',
+        'description' => 'Një pamje e qartë për menaxhimin e transportit.',
+        'view' => 'intro.php',
+    ],
     'dashboard' => [
         'title' => 'Paneli kryesor',
         'description' => 'Përmbledhje e moduleve të menaxhimit të transportit.',
@@ -90,7 +95,7 @@ $navigationItems = [
     'vehicles' => 'Automjetet',
 ];
 
-$requestedPage = $_GET['page'] ?? 'dashboard';
+$requestedPage = $_GET['page'] ?? 'intro';
 if (is_string($requestedPage) && ($requestedPage === 'logout' || isset($pages[$requestedPage]))) {
     $pageKey = $requestedPage;
 } else {
@@ -131,6 +136,11 @@ if ($pageKey === 'logout') {
 
     Authentication::signOut();
     header('Location: ?page=login');
+    exit;
+}
+
+if ($pageKey === 'intro') {
+    require __DIR__ . '/../src/Views/pages/intro.php';
     exit;
 }
 
