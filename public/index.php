@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Auth\Authentication;
 use App\Controllers\AccountController;
 use App\Controllers\AuthController;
+use App\Controllers\FinanceController;
 use App\Database\Connection;
 use App\Modules\CrudModule;
 
@@ -54,6 +55,11 @@ $pages = [
         'title' => 'Automjetet',
         'description' => 'Menaxho automjetet dhe kapacitetet e tyre.',
         'view' => 'module.php',
+    ],
+    'finances' => [
+        'title' => 'Shpenzimet dhe fitimi',
+        'description' => 'Regjistro të hyrat dhe shpenzimet e transporteve.',
+        'view' => 'finances.php',
     ],
     'login' => [
         'title' => 'Hyr në sistem',
@@ -123,6 +129,7 @@ $dashboardReportFrom = date('Y-m-01');
 $dashboardReportTo = date('Y-m-d');
 $dashboardReportError = null;
 $moduleData = null;
+$financeData = null;
 $user = null;
 $csrfToken = Authentication::csrfToken();
 
@@ -174,6 +181,8 @@ try {
             $accountsSuccess = $accountState['accountsSuccess'];
         } elseif (in_array($pageKey, ['customers', 'drivers', 'vehicles', 'transports'], true)) {
             $moduleData = CrudModule::handle($pdo, $pageKey, (int) $user['id'], $user['role']);
+        } elseif ($pageKey === 'finances') {
+            $financeData = FinanceController::handle($pdo, $user);
         } elseif ($pageKey === 'dashboard') {
             $statement = $pdo->query(
                 'SELECT

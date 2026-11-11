@@ -47,7 +47,7 @@
                         <span>Detajet teknike janë regjistruar në log-un e PHP-së.</span>
                     </div>
                 <?php endif; ?>
-                <?php if ($databaseError === null && ($moduleData !== null || in_array($pageKey, ['dashboard', 'not_found', 'add-admin', 'users'], true))): ?>
+                <?php if ($databaseError === null && ($moduleData !== null || $financeData !== null || in_array($pageKey, ['dashboard', 'not_found', 'add-admin', 'users'], true))): ?>
                     <?php require $viewFile; ?>
                 <?php endif; ?>
             </section>

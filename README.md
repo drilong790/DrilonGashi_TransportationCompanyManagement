@@ -78,6 +78,8 @@ Modulet **Klientët**, **Shoferët**, **Automjetet** dhe **Transportet** mbësht
 
 Lista e transporteve mund të filtrohet sipas statusit, datës së planifikuar, klientit dhe shoferit; fusha e kërkimit përfshin klientin, adresat, ngarkesën, shoferin dhe targën. Rezultatet e filtruar mund të eksportohen si CSV. Paneli përmbledh transportet sipas statusit për një periudhë të zgjedhur dhe ofron eksport CSV të detajeve për të njëjtën periudhë.
 
+Moduli **Shpenzimet dhe fitimi** është i qasshëm për SUPERADMIN dhe ADMIN. Për çdo transport mund të regjistrohen të hyrat dhe disa shpenzime në EUR (karburant, toll/taksa rruge, servis ose të tjera); fitimi llogaritet si të hyrat minus shpenzimet.
+
 Për databazat ekzistuese, pasi të jetë instaluar versioni i ri, ekzekuto migrimin `database/migrations/20261111_add_transport_end_time.sql`. Transportet ekzistuese marrin kohëzgjatje fillestare prej dy orësh; kontrollo dhe rregullo oraret sipas nevojës.
 
 ## Hyrja dhe përdoruesit

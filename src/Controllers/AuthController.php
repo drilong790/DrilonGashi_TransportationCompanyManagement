@@ -159,7 +159,7 @@ final class AuthController
             unset($_SESSION['redirect_after_login']);
             $allowedDestinations = array_merge(
                 array_keys($navigationItems),
-                ['add-admin', 'users', 'not_found']
+                ['add-admin', 'users', 'finances', 'not_found']
             );
             if (!is_string($destination) || !in_array($destination, $allowedDestinations, true)) {
                 $destination = 'dashboard';

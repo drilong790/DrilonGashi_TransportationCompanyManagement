@@ -18,7 +18,7 @@ Ky folder përmban skedarët për krijimin dhe përditësimin e databazës MySQL
    composer install
    ```
 
-`schema.sql` krijon tabelat e përdoruesve, klientëve, shoferëve, automjeteve dhe transporteve. `sample_data.sql` mbush bazën me llogari demo të verifikuara, 10 klientë, 8 shoferë, 9 automjete dhe 15 skenarë transporti. Importimi mund të përsëritet pa dublikuar të dhënat demo; transportet lidhen me klientët, shoferët, automjetet dhe përdoruesit përmes vlerave unike, jo ID-ve fikse.
+`schema.sql` krijon tabelat e përdoruesve, klientëve, shoferëve, automjeteve, transporteve dhe shpenzimeve të transporteve. Transporti ruan edhe të hyrat e tij në EUR. `sample_data.sql` mbush bazën me llogari demo të verifikuara, 10 klientë, 8 shoferë, 9 automjete dhe 15 skenarë transporti. Importimi mund të përsëritet pa dublikuar të dhënat demo; transportet lidhen me klientët, shoferët, automjetet dhe përdoruesit përmes vlerave unike, jo ID-ve fikse.
 
 ## Përditësimi i një databaze ekzistuese
 
@@ -41,6 +41,14 @@ Për të ruajtur kohën e përfundimit të transporteve dhe për të parandaluar
 ```bash
 mysql -u root -p transport_management < database/migrations/20261111_add_transport_end_time.sql
 ```
+
+Për funksionin financiar (të hyrat për transport dhe regjistri i shumë shpenzimeve), ekzekuto migrimin vijues në databazat ekzistuese:
+
+```bash
+mysql -u root -p transport_management < database/migrations/20261111_add_transport_finances.sql
+```
+
+Të hyrat fillestare për transportet ekzistuese vendosen në `0.00`; ky migrim nuk ndryshon shumën apo përmbajtjen e transporteve.
 
 ## Konfigurimi i aplikacionit
 

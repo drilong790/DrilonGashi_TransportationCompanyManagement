@@ -36,6 +36,16 @@
         <?php if (in_array($user['role'], ['SUPERADMIN', 'ADMIN'], true)): ?>
             <li>
                 <a
+                    class="navigation-link<?= $pageKey === 'finances' ? ' is-active' : '' ?>"
+                    href="?page=finances"
+                    <?= $pageKey === 'finances' ? 'aria-current="page"' : '' ?>
+                >
+                    <span class="navigation-indicator" aria-hidden="true"></span>
+                    <span>Shpenzimet dhe fitimi</span>
+                </a>
+            </li>
+            <li>
+                <a
                     class="navigation-link<?= $pageKey === 'add-admin' ? ' is-active' : '' ?>"
                     href="?page=add-admin"
                     <?= $pageKey === 'add-admin' ? 'aria-current="page"' : '' ?>

@@ -421,6 +421,72 @@ try {
     $scheduledTransportId = (int) $scheduledTransportLookup->fetchColumn();
     expectTrue($scheduledTransportId > 0, 'Scheduled transport is persisted');
 
+    $financePage = $admin->get('/?page=finances');
+    expectStatus($financePage, 200, 'ADMIN can open transport finances');
+    expectContains($financePage['body'], 'Shpenzimet dhe fitimi', 'Finance page explains the profit calculation');
+    expectContains($financePage['body'], 'Menaxho financat', 'Finance page lists transports for financial management');
+    $financeCsrf = $admin->csrfToken($financePage['body']);
+    $financeTransportPath = '/?page=finances&transport_id=' . $scheduledTransportId;
+
+    $response = $admin->post('/?page=finances', [
+        'csrf_token' => $financeCsrf,
+        'finance_action' => 'save_revenue',
+        'transport_id' => (string) $scheduledTransportId,
+        'revenue' => '1250.50',
+    ]);
+    expectStatus($response, 302, 'ADMIN can save transport revenue');
+    expectLocation($response, '?page=finances&transport_id=' . $scheduledTransportId, 'Revenue save returns to the selected transport finance page');
+
+    foreach ([
+        ['FUEL', 'Diesel', '300.25', '2025-03-01'],
+        ['TOLL', 'Autostrada', '50.00', '2025-03-01'],
+    ] as [$category, $description, $amount, $expenseDate]) {
+        $response = $admin->post($financeTransportPath, [
+            'csrf_token' => $financeCsrf,
+            'finance_action' => 'add_expense',
+            'transport_id' => (string) $scheduledTransportId,
+            'category' => $category,
+            'description' => $description,
+            'amount' => $amount,
+            'expense_date' => $expenseDate,
+        ]);
+        expectStatus($response, 302, "ADMIN can add {$category} expense");
+    }
+
+    $financeDetail = $admin->get($financeTransportPath);
+    expectContains($financeDetail['body'], '1.250,50 €', 'Finance detail displays saved revenue in EUR');
+    expectContains($financeDetail['body'], '350,25 €', 'Finance detail sums multiple expenses');
+    expectContains($financeDetail['body'], '900,25 €', 'Finance detail calculates transport profit');
+    $expenseLookup = $pdo->prepare(
+        'SELECT id FROM transport_expenses WHERE transport_id = :transport_id AND description = :description'
+    );
+    $expenseLookup->execute(['transport_id' => $scheduledTransportId, 'description' => 'Autostrada']);
+    $expenseId = (int) $expenseLookup->fetchColumn();
+    expectTrue($expenseId > 0, 'Expense records are persisted for their transport');
+
+    $response = $admin->post($financeTransportPath, [
+        'csrf_token' => $financeCsrf,
+        'finance_action' => 'add_expense',
+        'transport_id' => (string) $scheduledTransportId,
+        'category' => 'FUEL',
+        'description' => 'Invalid negative cost',
+        'amount' => '-1.00',
+        'expense_date' => '2025-03-01',
+    ]);
+    expectStatus($response, 422, 'Negative expense amounts are rejected');
+    expectContains($response['body'], 'Plotëso llojin', 'Invalid expenses explain the required fields');
+
+    $response = $admin->post($financeTransportPath, [
+        'csrf_token' => $financeCsrf,
+        'finance_action' => 'delete_expense',
+        'transport_id' => (string) $scheduledTransportId,
+        'expense_id' => (string) $expenseId,
+    ]);
+    expectStatus($response, 302, 'ADMIN can delete an expense');
+    $expenseCount = $pdo->prepare('SELECT COUNT(*) FROM transport_expenses WHERE transport_id = :id');
+    $expenseCount->execute(['id' => $scheduledTransportId]);
+    expectTrue((int) $expenseCount->fetchColumn() === 1, 'Deleting an expense updates the transport expense total');
+
     $overlappingDriver = $transportFields;
     $overlappingDriver['driver_id'] = (string) $scheduleDriverOne;
     $overlappingDriver['vehicle_id'] = (string) $scheduleVehicleTwo;
@@ -669,6 +735,12 @@ try {
     );
     expectStatus($dispatcher->get('/?page=customers'), 200, 'DISPATCHER can view customers');
     expectStatus($dispatcher->get('/?page=users'), 403, 'DISPATCHER cannot access account management');
+    expectStatus($dispatcher->get('/?page=finances'), 403, 'DISPATCHER cannot access transport finances');
+    expectContains(
+        $dispatcher->get('/?page=finances')['body'],
+        'Qasja në financa është e kufizuar',
+        'Finance access denial is explained to DISPATCHER'
+    );
     $dispatcherCustomers = $dispatcher->get('/?page=customers');
     $response = $dispatcher->post('/?page=customers', [
         'csrf_token' => $dispatcher->csrfToken($dispatcherCustomers['body']),
@@ -687,6 +759,7 @@ try {
 
     $superadmin = new TestBrowser($baseUrl);
     expectStatus($superadmin->login($superadminEmail, $password), 302, 'SUPERADMIN login succeeds');
+    expectStatus($superadmin->get('/?page=finances'), 200, 'SUPERADMIN can open transport finances');
     $superadminAccountsPage = $superadmin->get('/?page=users');
     expectStatus($superadminAccountsPage, 200, 'SUPERADMIN can open account management');
     expectContains($superadminAccountsPage['body'], $superadminEmail, 'SUPERADMIN sees own account');
