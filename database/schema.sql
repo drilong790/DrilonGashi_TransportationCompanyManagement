@@ -47,10 +47,12 @@ CREATE TABLE drivers (
     full_name VARCHAR(150) NOT NULL,
     license_number VARCHAR(50) NOT NULL,
     phone VARCHAR(30) NOT NULL,
+    email VARCHAR(150) NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_drivers_license_number (license_number),
+    UNIQUE KEY uq_drivers_email (email),
     KEY idx_drivers_is_active (is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

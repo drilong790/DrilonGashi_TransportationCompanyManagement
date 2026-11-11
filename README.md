@@ -80,6 +80,8 @@ Lista e transporteve mund të filtrohet sipas statusit, datës së planifikuar, 
 
 Moduli **Shpenzimet dhe fitimi** është i qasshëm për SUPERADMIN dhe ADMIN. Për çdo transport mund të regjistrohen të hyrat dhe disa shpenzime në EUR (karburant, toll/taksa rruge, servis ose të tjera); fitimi llogaritet si të hyrat minus shpenzimet.
 
+Njoftimet me email dërgohen te klienti dhe shoferi kur caktohet një transport/ndryshohet shoferi ose automjeti dhe kur ndryshon statusi. Kërkohet konfigurim SMTP; për transportet ekzistuese, vendos adresat e shoferëve te moduli Shoferët. Dështimi i email-it nuk e anulon ruajtjen e transportit; gabimi regjistrohet dhe njoftohet në faqe.
+
 Për databazat ekzistuese, pasi të jetë instaluar versioni i ri, ekzekuto migrimin `database/migrations/20261111_add_transport_end_time.sql`. Transportet ekzistuese marrin kohëzgjatje fillestare prej dy orësh; kontrollo dhe rregullo oraret sipas nevojës.
 
 ## Hyrja dhe përdoruesit

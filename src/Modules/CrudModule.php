@@ -40,13 +40,15 @@ final class CrudModule
                 'full_name' => 'Emri i plotë',
                 'license_number' => 'Numri i patentës',
                 'phone' => 'Telefoni',
+                'email' => 'Email',
                 'is_active_label' => 'Statusi',
             ],
-            'list_sql' => "SELECT id, full_name, license_number, phone, IF(is_active = 1, 'Aktiv', 'Joaktiv') AS is_active_label FROM drivers ORDER BY id DESC LIMIT 250",
+            'list_sql' => "SELECT id, full_name, license_number, phone, email, IF(is_active = 1, 'Aktiv', 'Joaktiv') AS is_active_label FROM drivers ORDER BY id DESC LIMIT 250",
             'fields' => [
                 'full_name' => ['label' => 'Emri i plotë', 'type' => 'text', 'required' => true, 'max' => 150],
                 'license_number' => ['label' => 'Numri i patentës', 'type' => 'text', 'required' => true, 'max' => 50],
                 'phone' => ['label' => 'Telefoni', 'type' => 'text', 'required' => true, 'max' => 30],
+                'email' => ['label' => 'Email (për njoftimet e transporteve)', 'type' => 'email', 'required' => false, 'max' => 150],
                 'is_active' => [
                     'label' => 'Statusi',
                     'type' => 'select',
@@ -195,10 +197,30 @@ final class CrudModule
                         http_response_code(422);
                     } else {
                         try {
-                            self::save($pdo, $module, $formValues, $action, $id, $userId);
-                            $_SESSION['flash_message'] = $isUpdate
+                            $saveResult = self::save($pdo, $module, $formValues, $action, $id, $userId);
+                            $successMessage = $isUpdate
                                 ? "{$module['title']} u përditësua me sukses."
                                 : "{$module['title']} u shtua me sukses.";
+                            if ($key === 'transports' && $saveResult !== null) {
+                                try {
+                                    $notificationWarnings = self::sendTransportNotifications(
+                                        $pdo,
+                                        $saveResult['id'],
+                                        $saveResult['previous']
+                                    );
+                                } catch (PDOException $exception) {
+                                    error_log(
+                                        "Loading notification recipients for transport {$saveResult['id']} failed: "
+                                        . $exception->getMessage()
+                                    );
+                                    $notificationWarnings = ['marrësit'];
+                                }
+                                if ($notificationWarnings !== []) {
+                                    $successMessage .= ' Transporti u ruajt, por njoftimi me email nuk u dërgua te: '
+                                        . implode(', ', $notificationWarnings) . '. Kontrollo adresën e email-it dhe konfigurimin SMTP.';
+                                }
+                            }
+                            $_SESSION['flash_message'] = $successMessage;
                             self::redirect($key);
                         } catch (\DomainException $exception) {
                             http_response_code(422);
@@ -612,14 +634,25 @@ final class CrudModule
         return $values;
     }
 
-    private static function save(PDO $pdo, array $module, array $values, string $action, ?int $id, int $userId): void
+    private static function save(PDO $pdo, array $module, array $values, string $action, ?int $id, int $userId): ?array
     {
         $columns = array_keys($module['fields']);
         $isTransport = $module['table'] === 'transports';
+        $previousRecord = null;
 
         try {
             if ($isTransport) {
                 $pdo->beginTransaction();
+                if ($action === 'update') {
+                    $previousStatement = $pdo->prepare(
+                        'SELECT driver_id, vehicle_id, status FROM transports WHERE id = :id FOR UPDATE'
+                    );
+                    $previousStatement->execute(['id' => $id]);
+                    $previousRecord = $previousStatement->fetch();
+                    if ($previousRecord === false) {
+                        throw new \DomainException('Transporti nuk ekziston më dhe nuk mund të përditësohet.');
+                    }
+                }
                 foreach (['driver_id' => 'drivers', 'vehicle_id' => 'vehicles'] as $field => $table) {
                     if (!empty($values[$field])) {
                         $lock = $pdo->prepare("SELECT id FROM {$table} WHERE id = :id FOR UPDATE");
@@ -648,14 +681,144 @@ final class CrudModule
             }
             $statement->execute($values);
             if ($isTransport) {
+                $savedId = $action === 'create' ? (int) $pdo->lastInsertId() : (int) $id;
                 $pdo->commit();
+                return ['id' => $savedId, 'previous' => $previousRecord];
             }
+            return null;
         } catch (\Throwable $exception) {
             if ($isTransport && $pdo->inTransaction()) {
                 $pdo->rollBack();
             }
             throw $exception;
         }
+    }
+
+    private static function sendTransportNotifications(PDO $pdo, int $transportId, ?array $previousRecord): array
+    {
+        $statement = $pdo->prepare(
+            'SELECT t.id, t.driver_id, t.vehicle_id, t.status, t.scheduled_date, t.scheduled_end,
+                t.pickup_address, t.destination_address, c.company_name, c.contact_person,
+                c.email AS customer_email, d.full_name AS driver_name, d.email AS driver_email,
+                v.plate_number AS vehicle_plate
+            FROM transports t
+            JOIN customers c ON c.id = t.customer_id
+            LEFT JOIN drivers d ON d.id = t.driver_id
+            LEFT JOIN vehicles v ON v.id = t.vehicle_id
+            WHERE t.id = :id'
+        );
+        $statement->execute(['id' => $transportId]);
+        $transport = $statement->fetch();
+        if ($transport === false) {
+            return [];
+        }
+
+        $isCreated = $previousRecord === null;
+        $driverChanged = !$isCreated
+            && (int) ($previousRecord['driver_id'] ?? 0) !== (int) ($transport['driver_id'] ?? 0);
+        $vehicleChanged = !$isCreated
+            && (int) ($previousRecord['vehicle_id'] ?? 0) !== (int) ($transport['vehicle_id'] ?? 0);
+        $statusChanged = !$isCreated && $previousRecord['status'] !== $transport['status'];
+        if (!$isCreated && !$driverChanged && !$vehicleChanged && !$statusChanged) {
+            return [];
+        }
+        if ($isCreated && $transport['driver_id'] === null && $transport['vehicle_id'] === null) {
+            return [];
+        }
+
+        $notificationDetails = [
+            'Transporti' => '#' . $transport['id'],
+            'Klienti' => $transport['company_name'],
+            'Shoferi' => $transport['driver_name'] ?? 'Pa caktuar',
+            'Automjeti' => $transport['vehicle_plate'] ?? 'Pa caktuar',
+            'Statusi' => self::transportStatusLabel($transport['status']),
+            'Nisja' => $transport['pickup_address'],
+            'Destinacioni' => $transport['destination_address'],
+            'Fillimi' => $transport['scheduled_date'],
+            'Përfundimi' => $transport['scheduled_end'],
+        ];
+        if ($driverChanged) {
+            $notificationDetails['Shoferi i mëparshëm'] = $previousRecord['driver_id'] === null
+                ? 'Pa caktuar'
+                : 'Nuk është më i caktuar';
+        }
+        if ($vehicleChanged) {
+            $notificationDetails['Automjeti i mëparshëm'] = $previousRecord['vehicle_id'] === null
+                ? 'Pa caktuar'
+                : 'Nuk është më i caktuar';
+        }
+
+        $subject = $isCreated
+            ? 'Transport i ri i caktuar'
+            : (($driverChanged || $vehicleChanged) && $statusChanged
+                ? 'Caktimi dhe statusi i transportit u ndryshuan'
+                : (($driverChanged || $vehicleChanged)
+                    ? 'Caktimi i transportit u ndryshua'
+                    : 'Statusi i transportit u ndryshua'));
+        $mailer = new \App\Mail\SmtpMailer();
+        $recipients = [];
+        $warnings = [];
+        if (is_string($transport['customer_email']) && $transport['customer_email'] !== '') {
+            $recipients[$transport['customer_email']] = [
+                'email' => $transport['customer_email'],
+                'name' => $transport['contact_person'],
+                'label' => 'klienti',
+            ];
+        } else {
+            $warnings[] = 'klienti (pa email)';
+        }
+        if (is_string($transport['driver_email']) && $transport['driver_email'] !== '') {
+            $recipients[$transport['driver_email']] = [
+                'email' => $transport['driver_email'],
+                'name' => $transport['driver_name'],
+                'label' => 'shoferi',
+            ];
+        } else {
+            $warnings[] = 'shoferi (pa email)';
+        }
+        if ($driverChanged && $previousRecord['driver_id'] !== null) {
+            $previousDriverStatement = $pdo->prepare('SELECT full_name, email FROM drivers WHERE id = :id');
+            $previousDriverStatement->execute(['id' => $previousRecord['driver_id']]);
+            $previousDriver = $previousDriverStatement->fetch();
+            if ($previousDriver !== false && is_string($previousDriver['email']) && $previousDriver['email'] !== '') {
+                $recipients[$previousDriver['email']] = [
+                    'email' => $previousDriver['email'],
+                    'name' => $previousDriver['full_name'],
+                    'label' => 'shoferi i mëparshëm',
+                ];
+            } elseif ($previousDriver !== false) {
+                $warnings[] = 'shoferi i mëparshëm (pa email)';
+            }
+        }
+
+        foreach ($recipients as $recipient) {
+            try {
+                $mailer->sendTransportNotification(
+                    $recipient['email'],
+                    $recipient['name'],
+                    $subject,
+                    $notificationDetails
+                );
+            } catch (\RuntimeException $exception) {
+                error_log(
+                    "Transport notification failed for transport {$transportId} ({$recipient['label']}): "
+                    . $exception->getMessage()
+                );
+                $warnings[] = $recipient['label'];
+            }
+        }
+        return array_values(array_unique($warnings));
+    }
+
+    private static function transportStatusLabel(string $status): string
+    {
+        return match ($status) {
+            'PLANNED' => 'Planifikuar',
+            'IN_PROGRESS' => 'Në proces',
+            'COMPLETED' => 'Përfunduar',
+            'CANCELLED' => 'Anuluar',
+            default => $status,
+        };
     }
 
     private static function saveError(PDOException $exception, string $key): string

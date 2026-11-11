@@ -379,11 +379,21 @@ try {
     $customerId = (int) $customerCheck->fetchColumn();
     expectTrue($customerId > 0, 'ADMIN customer creation persists');
     $driverFixture = $pdo->prepare(
-        'INSERT INTO drivers (full_name, license_number, phone) VALUES (:name, :license, :phone)'
+        'INSERT INTO drivers (full_name, license_number, phone, email) VALUES (:name, :license, :phone, :email)'
     );
-    $driverFixture->execute(['name' => 'Schedule Driver One', 'license' => "SCHED-1-{$identifier}", 'phone' => '0600000001']);
+    $driverFixture->execute([
+        'name' => 'Schedule Driver One',
+        'license' => "SCHED-1-{$identifier}",
+        'phone' => '0600000001',
+        'email' => "schedule-driver-one-{$identifier}@example.invalid",
+    ]);
     $scheduleDriverOne = (int) $pdo->lastInsertId();
-    $driverFixture->execute(['name' => 'Schedule Driver Two', 'license' => "SCHED-2-{$identifier}", 'phone' => '0600000002']);
+    $driverFixture->execute([
+        'name' => 'Schedule Driver Two',
+        'license' => "SCHED-2-{$identifier}",
+        'phone' => '0600000002',
+        'email' => "schedule-driver-two-{$identifier}@example.invalid",
+    ]);
     $scheduleDriverTwo = (int) $pdo->lastInsertId();
     $vehicleFixture = $pdo->prepare(
         'INSERT INTO vehicles (plate_number, vehicle_type, capacity) VALUES (:plate, :type, :capacity)'
@@ -410,6 +420,12 @@ try {
     ];
     $scheduledTransport = $admin->post('/?page=transports', $transportFields);
     expectStatus($scheduledTransport, 302, 'ADMIN can create transport with a valid time interval');
+    $transportListAfterNotification = $admin->get('/?page=transports');
+    expectContains(
+        $transportListAfterNotification['body'],
+        'Transporti u ruajt, por njoftimi me email nuk u dërgua',
+        'SMTP failure does not roll back transport creation and is surfaced to the user'
+    );
     $scheduledTransportLookup = $pdo->prepare(
         'SELECT id FROM transports WHERE customer_id = :customer_id AND cargo_description = :cargo AND scheduled_date = :scheduled_date'
     );
@@ -528,10 +544,17 @@ try {
     $updateFields = $transportFields;
     $updateFields['action'] = 'update';
     $updateFields['id'] = (string) $scheduledTransportId;
+    $updateFields['status'] = 'IN_PROGRESS';
     expectStatus(
         $admin->post('/?page=transports', $updateFields),
         302,
-        'Updating a transport does not conflict with its own existing assignment'
+        'Status changes can be saved on an existing transport'
+    );
+    $statusNotification = $admin->get('/?page=transports');
+    expectContains(
+        $statusNotification['body'],
+        'Transporti u ruajt, por njoftimi me email nuk u dërgua',
+        'Status-change email failures are surfaced without rolling back the status'
     );
 
     $cancelledFields = $transportFields;

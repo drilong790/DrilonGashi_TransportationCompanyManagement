@@ -50,6 +50,12 @@ mysql -u root -p transport_management < database/migrations/20261111_add_transpo
 
 Të hyrat fillestare për transportet ekzistuese vendosen në `0.00`; ky migrim nuk ndryshon shumën apo përmbajtjen e transporteve.
 
+Për njoftimet me email të shoferëve, ekzekuto edhe migrimin që shton email opsional për shoferët ekzistues. Plotëso adresat e shoferëve që duhet të marrin njoftime:
+
+```bash
+mysql -u root -p transport_management < database/migrations/20261111_add_driver_email.sql
+```
+
 ## Konfigurimi i aplikacionit
 
 Aplikacioni përdor PDO nga `src/Database/Connection.php`. Databaza konfigurohet me variablat `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` dhe `DB_PASSWORD`. Për XAMPP, vlerat e parazgjedhura janë `127.0.0.1`, `3306`, `transport_management`, `root` dhe fjalëkalim bosh. Mos vendos kredenciale reale në skedarë të versionuar.
@@ -58,7 +64,7 @@ Për konfigurim të ri, krijo fillimisht `drilon123@gmail.com` si `ADMIN` me `bi
 
 ## Konfigurimi i email-it SMTP
 
-PHPMailer dërgon kodin e verifikimit përmes SMTP. Vendos variablat e mëposhtme në konfigurimin lokal të Apache/PHP (p.sh. me direktivat `SetEnv` në konfigurimin lokal të Apache), pastaj rinise Apache. Mos i shto vlerat reale në Git.
+PHPMailer dërgon kodet e verifikimit dhe njoftimet e transporteve përmes SMTP. Vendos variablat e mëposhtme në konfigurimin lokal të Apache/PHP (p.sh. me direktivat `SetEnv` në konfigurimin lokal të Apache), pastaj rinise Apache. Mos i shto vlerat reale në Git.
 
 | Variabla | Përshkrimi |
 |---|---|
@@ -71,7 +77,7 @@ PHPMailer dërgon kodin e verifikimit përmes SMTP. Vendos variablat e mëposhtm
 | `SMTP_ENCRYPTION` | `tls` (parazgjedhje) ose `ssl` |
 | `APP_URL` | Adresa bazë e aplikacionit për lidhjen në email; opsionale |
 
-Kodi i verifikimit ka 6 shifra, ruhet vetëm si hash, skadon pas 10 minutash, lejon maksimumi 5 tentativa dhe mund të ridërgohet jo më shpesh se një herë në 60 sekonda.
+Kodi i verifikimit ka 6 shifra, ruhet vetëm si hash, skadon pas 10 minutash, lejon maksimumi 5 tentativa dhe mund të ridërgohet jo më shpesh se një herë në 60 sekonda. Kur caktohet shoferi/automjeti në një transport ose ndryshon statusi, aplikacioni njofton me email klientin dhe shoferin e caktuar. Email-i i shoferit është opsional për shoferët ekzistues dhe plotësohet te moduli Shoferët. Nëse dërgimi dështon, transporti ruhet, gabimi regjistrohet në log-un e PHP-së dhe faqja shfaq paralajmërim.
 
 Për XAMPP, kur PDO MySQL dhe `mbstring` janë aktive dhe SMTP është konfiguruar, aplikacioni mund të niset nga dosja kryesore me:
 
