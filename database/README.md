@@ -36,6 +36,12 @@ Pas migrimit të verifikimit, ekzekuto `migrations/20261029_add_superadmin_role.
 mysql -u root -p transport_management < database/migrations/20261029_add_superadmin_role.sql
 ```
 
+Për të ruajtur kohën e përfundimit të transporteve dhe për të parandaluar caktimin e shoferit ose automjetit në dy transporte që mbivendosen, ekzekuto migrimin e mëposhtëm në databazat ekzistuese. Transportet e regjistruara më herët marrin kohëzgjatje fillestare dy orë pas fillimit; verifiko oraret e tyre pas migrimit.
+
+```bash
+mysql -u root -p transport_management < database/migrations/20261111_add_transport_end_time.sql
+```
+
 ## Konfigurimi i aplikacionit
 
 Aplikacioni përdor PDO nga `src/Database/Connection.php`. Databaza konfigurohet me variablat `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` dhe `DB_PASSWORD`. Për XAMPP, vlerat e parazgjedhura janë `127.0.0.1`, `3306`, `transport_management`, `root` dhe fjalëkalim bosh. Mos vendos kredenciale reale në skedarë të versionuar.

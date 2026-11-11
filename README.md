@@ -74,9 +74,11 @@ Përdor menynë anësore ose kartat në panelin kryesor për të hapur:
 - Shoferët
 - Automjetet
 
-Modulet **Klientët**, **Shoferët**, **Automjetet** dhe **Transportet** mbështesin listimin, shtimin, ndryshimin dhe fshirjen e regjistrimeve. Formularët validohen në server; kërkesat përdorin PDO, parametrizim dhe token CSRF. Fshirja e klientit parandalohet nëse ka transporte të lidhura. Transporti lidhet me klientin, përdoruesin që e regjistroi dhe shoferin/automjetin (opsionalë).
+Modulet **Klientët**, **Shoferët**, **Automjetet** dhe **Transportet** mbështesin listimin, shtimin, ndryshimin dhe fshirjen e regjistrimeve. Formularët validohen në server; kërkesat përdorin PDO, parametrizim dhe token CSRF. Fshirja e klientit parandalohet nëse ka transporte të lidhura. Transporti lidhet me klientin, përdoruesin që e regjistroi dhe shoferin/automjetin (opsionalë). Çdo transport ka orë fillimi dhe përfundimi; i njëjti shofer ose automjet nuk mund të caktohet në transporte me intervale që mbivendosen. Transportet e anuluara nuk bllokojnë caktimin; të përfunduara llogariten.
 
 Lista e transporteve mund të filtrohet sipas statusit, datës së planifikuar, klientit dhe shoferit; fusha e kërkimit përfshin klientin, adresat, ngarkesën, shoferin dhe targën. Rezultatet e filtruar mund të eksportohen si CSV. Paneli përmbledh transportet sipas statusit për një periudhë të zgjedhur dhe ofron eksport CSV të detajeve për të njëjtën periudhë.
+
+Për databazat ekzistuese, pasi të jetë instaluar versioni i ri, ekzekuto migrimin `database/migrations/20261111_add_transport_end_time.sql`. Transportet ekzistuese marrin kohëzgjatje fillestare prej dy orësh; kontrollo dhe rregullo oraret sipas nevojës.
 
 ## Hyrja dhe përdoruesit
 

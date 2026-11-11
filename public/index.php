@@ -267,7 +267,7 @@ try {
                     $exportStatement = $pdo->prepare(
                         'SELECT t.id, c.company_name AS customer_name, d.full_name AS driver_name,
                             v.plate_number, t.pickup_address, t.destination_address, t.cargo_description,
-                            t.scheduled_date, t.status, u.full_name AS created_by_name
+                            t.scheduled_date, t.scheduled_end, t.status, u.full_name AS created_by_name
                         FROM transports t
                         JOIN customers c ON c.id = t.customer_id
                         LEFT JOIN drivers d ON d.id = t.driver_id
@@ -292,7 +292,7 @@ try {
                         throw new \RuntimeException('Skedari CSV i raportit nuk mund të krijohej.');
                     }
                     fwrite($output, "\xEF\xBB\xBF");
-                    fputcsv($output, ['ID', 'Klienti', 'Shoferi', 'Targa', 'Nisja', 'Destinacioni', 'Ngarkesa', 'Data', 'Statusi', 'Regjistruar nga']);
+                    fputcsv($output, ['ID', 'Klienti', 'Shoferi', 'Targa', 'Nisja', 'Destinacioni', 'Ngarkesa', 'Fillimi', 'Përfundimi', 'Statusi', 'Regjistruar nga']);
                     $safeCsvValue = static function (?string $value): string {
                         $value ??= '';
                         return preg_match('/^[\s]*[=+\-@]/u', $value) === 1 ? "'" . $value : $value;
@@ -313,6 +313,7 @@ try {
                             $safeCsvValue($row['destination_address']),
                             $safeCsvValue($row['cargo_description']),
                             $row['scheduled_date'],
+                            $row['scheduled_end'],
                             $statusCsvLabels[$row['status']] ?? $row['status'],
                             $safeCsvValue($row['created_by_name']),
                         ]);

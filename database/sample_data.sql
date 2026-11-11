@@ -42,12 +42,13 @@ INSERT IGNORE INTO vehicles (plate_number, vehicle_type, capacity, is_active, cr
 INSERT INTO transports (
     customer_id, driver_id, vehicle_id, created_by,
     pickup_address, destination_address, cargo_description,
-    scheduled_date, status, created_at, updated_at
+    scheduled_date, scheduled_end, status, created_at, updated_at
 )
 SELECT
     c.id, d.id, v.id, creator.id,
     sample.pickup_address, sample.destination_address, sample.cargo_description,
-    sample.scheduled_date, sample.status, sample.scheduled_date, NULL
+    sample.scheduled_date, DATE_ADD(sample.scheduled_date, INTERVAL 2 HOUR),
+    sample.status, sample.scheduled_date, NULL
 FROM (
     SELECT 'info@albanialogistics.al' AS customer_email, 'AL-2024-001' AS driver_license, 'AB-101-TR' AS vehicle_plate,
         'Rruga e Durrësit 12, Tiranë' AS pickup_address, 'Porti i Durrësit, Durrës' AS destination_address,

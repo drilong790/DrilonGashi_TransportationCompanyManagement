@@ -378,10 +378,118 @@ try {
     $customerCheck->execute(['email' => "customer-{$identifier}@example.invalid"]);
     $customerId = (int) $customerCheck->fetchColumn();
     expectTrue($customerId > 0, 'ADMIN customer creation persists');
+    $driverFixture = $pdo->prepare(
+        'INSERT INTO drivers (full_name, license_number, phone) VALUES (:name, :license, :phone)'
+    );
+    $driverFixture->execute(['name' => 'Schedule Driver One', 'license' => "SCHED-1-{$identifier}", 'phone' => '0600000001']);
+    $scheduleDriverOne = (int) $pdo->lastInsertId();
+    $driverFixture->execute(['name' => 'Schedule Driver Two', 'license' => "SCHED-2-{$identifier}", 'phone' => '0600000002']);
+    $scheduleDriverTwo = (int) $pdo->lastInsertId();
+    $vehicleFixture = $pdo->prepare(
+        'INSERT INTO vehicles (plate_number, vehicle_type, capacity) VALUES (:plate, :type, :capacity)'
+    );
+    $vehicleFixture->execute(['plate' => "SCHED-1-{$identifier}", 'type' => 'Test van', 'capacity' => 1]);
+    $scheduleVehicleOne = (int) $pdo->lastInsertId();
+    $vehicleFixture->execute(['plate' => "SCHED-2-{$identifier}", 'type' => 'Test van', 'capacity' => 1]);
+    $scheduleVehicleTwo = (int) $pdo->lastInsertId();
+
+    $transportForm = $admin->get('/?page=transports&action=create');
+    $transportCsrf = $admin->csrfToken($transportForm['body']);
+    $transportFields = [
+        'csrf_token' => $transportCsrf,
+        'action' => 'create',
+        'customer_id' => (string) $customerId,
+        'driver_id' => (string) $scheduleDriverOne,
+        'vehicle_id' => (string) $scheduleVehicleOne,
+        'pickup_address' => 'Schedule pickup',
+        'destination_address' => 'Schedule destination',
+        'cargo_description' => 'Schedule test cargo',
+        'scheduled_date' => '2025-03-01T10:00',
+        'scheduled_end' => '2025-03-01T12:00',
+        'status' => 'PLANNED',
+    ];
+    $scheduledTransport = $admin->post('/?page=transports', $transportFields);
+    expectStatus($scheduledTransport, 302, 'ADMIN can create transport with a valid time interval');
+    $scheduledTransportLookup = $pdo->prepare(
+        'SELECT id FROM transports WHERE customer_id = :customer_id AND cargo_description = :cargo AND scheduled_date = :scheduled_date'
+    );
+    $scheduledTransportLookup->execute([
+        'customer_id' => $customerId,
+        'cargo' => 'Schedule test cargo',
+        'scheduled_date' => '2025-03-01 10:00:00',
+    ]);
+    $scheduledTransportId = (int) $scheduledTransportLookup->fetchColumn();
+    expectTrue($scheduledTransportId > 0, 'Scheduled transport is persisted');
+
+    $overlappingDriver = $transportFields;
+    $overlappingDriver['driver_id'] = (string) $scheduleDriverOne;
+    $overlappingDriver['vehicle_id'] = (string) $scheduleVehicleTwo;
+    $overlappingDriver['scheduled_date'] = '2025-03-01T11:00';
+    $overlappingDriver['scheduled_end'] = '2025-03-01T13:00';
+    $response = $admin->post('/?page=transports', $overlappingDriver);
+    expectStatus($response, 422, 'Overlapping transport for the same driver is rejected');
+    expectContains($response['body'], 'Ky shoferi është i caktuar', 'Driver conflict explains the scheduling issue');
+
+    $completedOverlap = $overlappingDriver;
+    $completedOverlap['status'] = 'COMPLETED';
+    $response = $admin->post('/?page=transports', $completedOverlap);
+    expectStatus($response, 422, 'Completed transports still count as scheduling conflicts');
+
+    $overlappingVehicle = $transportFields;
+    $overlappingVehicle['driver_id'] = (string) $scheduleDriverTwo;
+    $overlappingVehicle['vehicle_id'] = (string) $scheduleVehicleOne;
+    $overlappingVehicle['scheduled_date'] = '2025-03-01T11:00';
+    $overlappingVehicle['scheduled_end'] = '2025-03-01T13:00';
+    $response = $admin->post('/?page=transports', $overlappingVehicle);
+    expectStatus($response, 422, 'Overlapping transport for the same vehicle is rejected');
+    expectContains($response['body'], 'Ky automjeti është i caktuar', 'Vehicle conflict explains the scheduling issue');
+
+    $adjacentTransport = $transportFields;
+    $adjacentTransport['scheduled_date'] = '2025-03-01T12:00';
+    $adjacentTransport['scheduled_end'] = '2025-03-01T13:00';
+    expectStatus(
+        $admin->post('/?page=transports', $adjacentTransport),
+        302,
+        'Back-to-back transports are allowed when their intervals only touch'
+    );
+
+    $invalidInterval = $transportFields;
+    $invalidInterval['scheduled_end'] = '2025-03-01T10:00';
+    $response = $admin->post('/?page=transports', $invalidInterval);
+    expectStatus($response, 422, 'Transport end must be later than its start');
+    expectContains($response['body'], 'duhet të jenë pas fillimit', 'Invalid interval displays a clear validation message');
+
+    $updateFields = $transportFields;
+    $updateFields['action'] = 'update';
+    $updateFields['id'] = (string) $scheduledTransportId;
+    expectStatus(
+        $admin->post('/?page=transports', $updateFields),
+        302,
+        'Updating a transport does not conflict with its own existing assignment'
+    );
+
+    $cancelledFields = $transportFields;
+    $cancelledFields['driver_id'] = (string) $scheduleDriverTwo;
+    $cancelledFields['vehicle_id'] = (string) $scheduleVehicleTwo;
+    $cancelledFields['status'] = 'CANCELLED';
+    expectStatus(
+        $admin->post('/?page=transports', $cancelledFields),
+        302,
+        'Cancelled transports do not reserve a driver or vehicle'
+    );
+    $afterCancelled = $transportFields;
+    $afterCancelled['driver_id'] = (string) $scheduleDriverTwo;
+    $afterCancelled['vehicle_id'] = (string) $scheduleVehicleTwo;
+    expectStatus(
+        $admin->post('/?page=transports', $afterCancelled),
+        302,
+        'Cancelled transports are ignored when checking later assignments'
+    );
+
     $transportStatement = $pdo->prepare(
         "INSERT INTO transports
-            (customer_id, created_by, pickup_address, destination_address, cargo_description, scheduled_date, status)
-        VALUES (:customer_id, :created_by, 'Test pickup', 'Test destination', 'Test cargo', CURRENT_TIMESTAMP, 'PLANNED')"
+            (customer_id, created_by, pickup_address, destination_address, cargo_description, scheduled_date, scheduled_end, status)
+        VALUES (:customer_id, :created_by, 'Test pickup', 'Test destination', 'Test cargo', CURRENT_TIMESTAMP, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 1 HOUR), 'PLANNED')"
     );
     $transportStatement->execute([
         'customer_id' => $customerId,
@@ -390,9 +498,9 @@ try {
 
     $reportFixture = $pdo->prepare(
         'INSERT INTO transports
-            (customer_id, created_by, pickup_address, destination_address, cargo_description, scheduled_date, status)
+            (customer_id, created_by, pickup_address, destination_address, cargo_description, scheduled_date, scheduled_end, status)
         VALUES
-            (:customer_id, :created_by, :pickup_address, :destination_address, :cargo_description, :scheduled_date, :status)'
+            (:customer_id, :created_by, :pickup_address, :destination_address, :cargo_description, :scheduled_date, :scheduled_end, :status)'
     );
     foreach ([
         ['2025-01-02 09:00:00', 'PLANNED', 'Report fixture'],
@@ -406,6 +514,7 @@ try {
             'destination_address' => 'Report destination',
             'cargo_description' => $cargoDescription,
             'scheduled_date' => $scheduledDate,
+            'scheduled_end' => date('Y-m-d H:i:s', strtotime($scheduledDate . ' +2 hours')),
             'status' => $status,
         ]);
     }

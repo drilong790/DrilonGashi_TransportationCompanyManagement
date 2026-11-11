@@ -88,11 +88,12 @@ final class CrudModule
                 'customer_name' => 'Klienti',
                 'pickup_address' => 'Nisja',
                 'destination_address' => 'Destinacioni',
-                'scheduled_date' => 'Data e planifikuar',
+                'scheduled_date' => 'Fillimi',
+                'scheduled_end' => 'Përfundimi',
                 'status_label' => 'Statusi',
                 'created_by_name' => 'Regjistruar nga',
             ],
-            'list_sql' => "SELECT t.id, c.company_name AS customer_name, t.pickup_address, t.destination_address, t.scheduled_date, CASE t.status WHEN 'PLANNED' THEN 'Planifikuar' WHEN 'IN_PROGRESS' THEN 'Në proces' WHEN 'COMPLETED' THEN 'Përfunduar' ELSE 'Anuluar' END AS status_label, u.full_name AS created_by_name FROM transports t JOIN customers c ON c.id = t.customer_id JOIN users u ON u.id = t.created_by ORDER BY t.scheduled_date DESC, t.id DESC LIMIT 250",
+            'list_sql' => "SELECT t.id, c.company_name AS customer_name, t.pickup_address, t.destination_address, t.scheduled_date, t.scheduled_end, CASE t.status WHEN 'PLANNED' THEN 'Planifikuar' WHEN 'IN_PROGRESS' THEN 'Në proces' WHEN 'COMPLETED' THEN 'Përfunduar' ELSE 'Anuluar' END AS status_label, u.full_name AS created_by_name FROM transports t JOIN customers c ON c.id = t.customer_id JOIN users u ON u.id = t.created_by ORDER BY t.scheduled_date DESC, t.id DESC LIMIT 250",
             'fields' => [
                 'customer_id' => ['label' => 'Klienti', 'type' => 'select', 'required' => true, 'source' => 'customers'],
                 'driver_id' => ['label' => 'Shoferi (opsional)', 'type' => 'select', 'required' => false, 'source' => 'drivers'],
@@ -100,7 +101,8 @@ final class CrudModule
                 'pickup_address' => ['label' => 'Adresa e nisjes', 'type' => 'text', 'required' => true, 'max' => 255],
                 'destination_address' => ['label' => 'Adresa e destinacionit', 'type' => 'text', 'required' => true, 'max' => 255],
                 'cargo_description' => ['label' => 'Përshkrimi i ngarkesës', 'type' => 'textarea', 'required' => true],
-                'scheduled_date' => ['label' => 'Data dhe ora', 'type' => 'datetime-local', 'required' => true],
+                'scheduled_date' => ['label' => 'Data dhe ora e fillimit', 'type' => 'datetime-local', 'required' => true],
+                'scheduled_end' => ['label' => 'Data dhe ora e përfundimit', 'type' => 'datetime-local', 'required' => true],
                 'status' => [
                     'label' => 'Statusi',
                     'type' => 'select',
@@ -198,6 +200,9 @@ final class CrudModule
                                 ? "{$module['title']} u përditësua me sukses."
                                 : "{$module['title']} u shtua me sukses.";
                             self::redirect($key);
+                        } catch (\DomainException $exception) {
+                            http_response_code(422);
+                            $errors[] = $exception->getMessage();
                         } catch (PDOException $exception) {
                             error_log("Saving {$key} record failed: " . $exception->getMessage());
                             http_response_code(422);
@@ -375,7 +380,7 @@ final class CrudModule
         $statement = $pdo->prepare(
             "SELECT t.id, c.company_name AS customer_name, d.full_name AS driver_name,
                 v.plate_number, t.pickup_address, t.destination_address, t.cargo_description,
-                t.scheduled_date, t.status,
+                t.scheduled_date, t.scheduled_end, t.status,
                 CASE t.status
                     WHEN 'PLANNED' THEN 'Planifikuar'
                     WHEN 'IN_PROGRESS' THEN 'Në proces'
@@ -405,7 +410,7 @@ final class CrudModule
             throw new \RuntimeException('Skedari CSV nuk mund të krijohej.');
         }
         fwrite($output, "\xEF\xBB\xBF");
-        fputcsv($output, ['ID', 'Klienti', 'Shoferi', 'Targa', 'Nisja', 'Destinacioni', 'Ngarkesa', 'Data', 'Statusi', 'Regjistruar nga']);
+        fputcsv($output, ['ID', 'Klienti', 'Shoferi', 'Targa', 'Nisja', 'Destinacioni', 'Ngarkesa', 'Fillimi', 'Përfundimi', 'Statusi', 'Regjistruar nga']);
         while ($row = $statement->fetch()) {
             fputcsv($output, [
                 $row['id'],
@@ -416,6 +421,7 @@ final class CrudModule
                 self::csvSafe($row['destination_address']),
                 self::csvSafe($row['cargo_description']),
                 $row['scheduled_date'],
+                $row['scheduled_end'],
                 self::csvSafe($row['status_label']),
                 self::csvSafe($row['created_by_name']),
             ]);
@@ -508,6 +514,51 @@ final class CrudModule
             foreach ($normalizedDates as $name => $date) {
                 $values[$name] = $date;
             }
+            if (isset($values['scheduled_date'], $values['scheduled_end'])) {
+                if ($values['scheduled_end'] <= $values['scheduled_date']) {
+                    $errors[] = 'Data dhe ora e përfundimit duhet të jenë pas fillimit.';
+                } else {
+                    $errors = array_merge(
+                        $errors,
+                        self::transportConflictErrors($pdo, $values, (int) ($record['id'] ?? 0))
+                    );
+                }
+            }
+        }
+        return $errors;
+    }
+
+    private static function transportConflictErrors(PDO $pdo, array $values, int $excludeId): array
+    {
+        if (($values['status'] ?? null) === 'CANCELLED') {
+            return [];
+        }
+
+        $errors = [];
+        foreach ([
+            'driver_id' => 'shoferi',
+            'vehicle_id' => 'automjeti',
+        ] as $field => $label) {
+            if (empty($values[$field])) {
+                continue;
+            }
+            $statement = $pdo->prepare(
+                "SELECT COUNT(*) FROM transports
+                WHERE {$field} = :resource_id
+                    AND status <> 'CANCELLED'
+                    AND scheduled_date < :scheduled_end
+                    AND scheduled_end > :scheduled_date
+                    AND id <> :exclude_id"
+            );
+            $statement->execute([
+                'resource_id' => (int) $values[$field],
+                'scheduled_end' => $values['scheduled_end'],
+                'scheduled_date' => $values['scheduled_date'],
+                'exclude_id' => $excludeId,
+            ]);
+            if ((int) $statement->fetchColumn() > 0) {
+                $errors[] = "Ky {$label} është i caktuar në një transport tjetër gjatë këtij orari.";
+            }
         }
         return $errors;
     }
@@ -564,20 +615,47 @@ final class CrudModule
     private static function save(PDO $pdo, array $module, array $values, string $action, ?int $id, int $userId): void
     {
         $columns = array_keys($module['fields']);
-        if ($action === 'create') {
-            if ($module['table'] === 'transports') {
-                $columns[] = 'created_by';
-                $values['created_by'] = $userId;
+        $isTransport = $module['table'] === 'transports';
+
+        try {
+            if ($isTransport) {
+                $pdo->beginTransaction();
+                foreach (['driver_id' => 'drivers', 'vehicle_id' => 'vehicles'] as $field => $table) {
+                    if (!empty($values[$field])) {
+                        $lock = $pdo->prepare("SELECT id FROM {$table} WHERE id = :id FOR UPDATE");
+                        $lock->execute(['id' => (int) $values[$field]]);
+                        $lock->fetchColumn();
+                    }
+                }
+                $conflicts = self::transportConflictErrors($pdo, $values, $id ?? 0);
+                if ($conflicts !== []) {
+                    throw new \DomainException(implode(' ', $conflicts));
+                }
             }
-            $columnSql = implode(', ', $columns);
-            $placeholderSql = implode(', ', array_map(static fn (string $column): string => ':' . $column, $columns));
-            $statement = $pdo->prepare("INSERT INTO {$module['table']} ({$columnSql}) VALUES ({$placeholderSql})");
-        } else {
-            $assignments = implode(', ', array_map(static fn (string $column): string => "{$column} = :{$column}", $columns));
-            $statement = $pdo->prepare("UPDATE {$module['table']} SET {$assignments} WHERE id = :id");
-            $values['id'] = $id;
+
+            if ($action === 'create') {
+                if ($isTransport) {
+                    $columns[] = 'created_by';
+                    $values['created_by'] = $userId;
+                }
+                $columnSql = implode(', ', $columns);
+                $placeholderSql = implode(', ', array_map(static fn (string $column): string => ':' . $column, $columns));
+                $statement = $pdo->prepare("INSERT INTO {$module['table']} ({$columnSql}) VALUES ({$placeholderSql})");
+            } else {
+                $assignments = implode(', ', array_map(static fn (string $column): string => "{$column} = :{$column}", $columns));
+                $statement = $pdo->prepare("UPDATE {$module['table']} SET {$assignments} WHERE id = :id");
+                $values['id'] = $id;
+            }
+            $statement->execute($values);
+            if ($isTransport) {
+                $pdo->commit();
+            }
+        } catch (\Throwable $exception) {
+            if ($isTransport && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $exception;
         }
-        $statement->execute($values);
     }
 
     private static function saveError(PDOException $exception, string $key): string
