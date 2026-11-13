@@ -73,7 +73,7 @@ $dashboardNow = new DateTimeImmutable();
         <p class="eyebrow">QASJE E SHPEJTË</p>
         <h2>Menaxho biznesin</h2>
     </div>
-    <span class="module-count">4 module</span>
+    <span class="module-count">5 module</span>
 </div>
 
 <div class="module-grid">
@@ -112,6 +112,15 @@ $dashboardNow = new DateTimeImmutable();
             <span class="module-card-stat">Kontrollo flotën dhe kapacitetin</span>
         <?php endif; ?>
         <span class="module-card-link">Hap modulin <span aria-hidden="true">→</span></span>
+    </a>
+    <a class="module-card" href="?page=calendar">
+        <span class="module-icon module-icon-orange" aria-hidden="true">KA</span>
+        <span class="module-card-title">Kalendari</span>
+        <span class="module-card-description">Orari i transporteve dhe caktimet e ekipit.</span>
+        <?php if ($dashboardStats !== null): ?>
+            <span class="module-card-stat">Shiko planin ditor dhe javor</span>
+        <?php endif; ?>
+        <span class="module-card-link">Hap kalendarin <span aria-hidden="true">→</span></span>
     </a>
 </div>
 

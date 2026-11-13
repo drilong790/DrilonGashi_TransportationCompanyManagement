@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Auth\Authentication;
 use App\Controllers\AccountController;
 use App\Controllers\AuthController;
+use App\Controllers\CalendarController;
 use App\Controllers\FinanceController;
 use App\Database\Connection;
 use App\Modules\CrudModule;
@@ -35,6 +36,11 @@ $pages = [
         'title' => 'Paneli kryesor',
         'description' => 'Përmbledhje e moduleve të menaxhimit të transportit.',
         'view' => 'dashboard.php',
+    ],
+    'calendar' => [
+        'title' => 'Kalendari',
+        'description' => 'Planifiko dhe ndiq oraret e transporteve.',
+        'view' => 'calendar.php',
     ],
     'transports' => [
         'title' => 'Transportet',
@@ -95,6 +101,7 @@ $pages = [
 
 $navigationItems = [
     'dashboard' => 'Paneli kryesor',
+    'calendar' => 'Kalendari',
     'transports' => 'Transportet',
     'customers' => 'Klientët',
     'drivers' => 'Shoferët',
@@ -129,6 +136,7 @@ $dashboardReportFrom = date('Y-m-01');
 $dashboardReportTo = date('Y-m-d');
 $dashboardReportError = null;
 $moduleData = null;
+$calendarData = null;
 $financeData = null;
 $user = null;
 $csrfToken = Authentication::csrfToken();
@@ -183,6 +191,8 @@ try {
             $moduleData = CrudModule::handle($pdo, $pageKey, (int) $user['id'], $user['role']);
         } elseif ($pageKey === 'finances') {
             $financeData = FinanceController::handle($pdo, $user);
+        } elseif ($pageKey === 'calendar') {
+            $calendarData = CalendarController::handle($pdo);
         } elseif ($pageKey === 'dashboard') {
             $statement = $pdo->query(
                 'SELECT

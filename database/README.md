@@ -12,6 +12,8 @@ Ky folder përmban skedarët për krijimin dhe përditësimin e databazës MySQL
    mysql -u root -p transport_management < database/sample_data.sql
    ```
 
+   Për të shtuar transporte prove në ditët në vijim dhe shpenzime shembullore, ekzekuto `database/demo_calendar_data.sql` vetëm në databazën lokale/demo. Regjistrimet shënohen me `DEMO-CALENDAR` dhe skripti nuk krijon llogari përdoruesish ose nuk fshin të dhëna.
+
 3. Instalo varësitë PHP nga dosja kryesore e projektit:
 
    ```bash

@@ -42,6 +42,7 @@ src/
   Controllers/
     AccountController.php   Krijimi dhe menaxhimi i llogarive
     AuthController.php      Hyrja, regjistrimi dhe verifikimi i email-it
+    CalendarController.php Kërkimi i transporteve sipas datës dhe caktimeve
   Database/
     Connection.php          Lidhja e përbashkët me MySQL përmes PDO
   Modules/
@@ -51,6 +52,7 @@ src/
       navigation.php        Navigimi i përbashkët i aplikacionit
     pages/
       add-admin.php          Forma për krijimin e administratorëve (superadmin/admin)
+      calendar.php           Pamja ditore dhe javore e transporteve
       dashboard.php         Paneli kryesor dhe lidhjet te modulet
       login.php              Hyrja e përdoruesit
       module.php             Pamja e përbashkët për listat dhe formularët CRUD
@@ -69,12 +71,15 @@ database/
 Përdor menynë anësore ose kartat në panelin kryesor për të hapur:
 
 - Panelin kryesor
+- Kalendarin ditor/javor të transporteve
 - Transportet
 - Klientët
 - Shoferët
 - Automjetet
 
 Modulet **Klientët**, **Shoferët**, **Automjetet** dhe **Transportet** mbështesin listimin, shtimin, ndryshimin dhe fshirjen e regjistrimeve. Formularët validohen në server; kërkesat përdorin PDO, parametrizim dhe token CSRF. Fshirja e klientit parandalohet nëse ka transporte të lidhura. Transporti lidhet me klientin, përdoruesin që e regjistroi dhe shoferin/automjetin (opsionalë). Çdo transport ka orë fillimi dhe përfundimi; i njëjti shofer ose automjet nuk mund të caktohet në transporte me intervale që mbivendosen. Transportet e anuluara nuk bllokojnë caktimin; të përfunduara llogariten.
+
+Faqja **Kalendari** paraqet transportet sipas ditës ose javës, me filtra sipas statusit, shoferit dhe automjetit. Zgjedhja e një transporti hap formularin ekzistues për ndryshim; në ekranet e vogla ditët paraqiten si listë vertikale.
 
 Lista e transporteve mund të filtrohet sipas statusit, datës së planifikuar, klientit dhe shoferit; fusha e kërkimit përfshin klientin, adresat, ngarkesën, shoferin dhe targën. Rezultatet e filtruar mund të eksportohen si CSV. Paneli përmbledh transportet sipas statusit për një periudhë të zgjedhur dhe ofron eksport CSV të detajeve për të njëjtën periudhë.
 

@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#07111b">
     <title><?= htmlspecialchars($page['title'], ENT_QUOTES, 'UTF-8') ?> | Transporti</title>
     <link rel="stylesheet" href="assets/app.css?v=20261110">
-    <link rel="stylesheet" href="assets/app-theme.css?v=20261110">
+    <link rel="stylesheet" href="assets/app-theme.css?v=20261113">
     <?php if ($pageKey === 'dashboard'): ?>
         <link rel="stylesheet" href="assets/dashboard.css?v=20261110">
     <?php endif; ?>
@@ -47,7 +47,7 @@
                         <span>Detajet teknike janë regjistruar në log-un e PHP-së.</span>
                     </div>
                 <?php endif; ?>
-                <?php if ($databaseError === null && ($moduleData !== null || $financeData !== null || in_array($pageKey, ['dashboard', 'not_found', 'add-admin', 'users'], true))): ?>
+                <?php if ($databaseError === null && ($moduleData !== null || $calendarData !== null || $financeData !== null || in_array($pageKey, ['dashboard', 'not_found', 'add-admin', 'users'], true))): ?>
                     <?php require $viewFile; ?>
                 <?php endif; ?>
             </section>

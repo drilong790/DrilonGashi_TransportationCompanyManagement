@@ -344,7 +344,7 @@ try {
     expectContains($dashboard['body'], 'class="app-page dashboard-page"', 'Dashboard uses the shared and dedicated visual themes');
     expectContains($dashboard['body'], 'assets/brand-symbol.svg?v=20261110', 'Dashboard uses the shared transport logo');
     expectContains($dashboard['body'], 'assets/dashboard.css?v=20261110', 'Dashboard loads its dedicated stylesheet');
-    expectContains($dashboard['body'], 'assets/app-theme.css?v=20261110', 'Dashboard also loads the shared application theme');
+    expectContains($dashboard['body'], 'assets/app-theme.css?v=20261113', 'Dashboard also loads the shared application theme');
     expectStatus($admin->get('/assets/dashboard.css'), 200, 'Dashboard theme stylesheet is served');
     expectStatus($admin->get('/assets/app-theme.css'), 200, 'Shared application theme stylesheet is served');
     $authenticatedLogin = $admin->get('/?page=login');
@@ -355,6 +355,8 @@ try {
     foreach (['Transportet', 'Klientët', 'Shoferët', 'Automjetet'] as $label) {
         expectContains($dashboard['body'], $label, "ADMIN navigation includes {$label}");
     }
+    expectContains($dashboard['body'], 'href="?page=calendar"', 'Dashboard links to the transport calendar');
+    expectContains($dashboard['body'], 'Kalendari', 'ADMIN navigation includes the transport calendar');
     foreach (['transports', 'customers', 'drivers', 'vehicles'] as $page) {
         $moduleResponse = $admin->get("/?page={$page}");
         expectStatus($moduleResponse, 200, "ADMIN can open {$page} module");
@@ -436,6 +438,31 @@ try {
     ]);
     $scheduledTransportId = (int) $scheduledTransportLookup->fetchColumn();
     expectTrue($scheduledTransportId > 0, 'Scheduled transport is persisted');
+
+    $calendarPage = $admin->get('/?page=calendar&view=day&date=2025-03-01');
+    expectStatus($calendarPage, 200, 'ADMIN can open the daily transport calendar');
+    expectContains($calendarPage['body'], 'Schedule test cargo', 'Calendar lists scheduled cargo');
+    expectContains($calendarPage['body'], '10:00', 'Calendar shows the transport start time');
+    expectContains(
+        $calendarPage['body'],
+        '?page=transports&amp;action=edit&amp;id=' . $scheduledTransportId,
+        'Calendar links to the existing transport editor'
+    );
+    expectContains($calendarPage['body'], 'name="driver_id"', 'Calendar can filter by driver');
+    expectContains($calendarPage['body'], 'name="vehicle_id"', 'Calendar can filter by vehicle');
+    $filteredCalendar = $admin->get(
+        '/?page=calendar&view=day&date=2025-03-01&status=PLANNED&driver_id=' . $scheduleDriverOne
+    );
+    expectStatus($filteredCalendar, 200, 'Calendar applies status and driver filters');
+    expectContains($filteredCalendar['body'], 'Schedule test cargo', 'Filtered calendar retains matching transport');
+    $weeklyCalendar = $admin->get('/?page=calendar&view=week&date=2025-03-01');
+    expectStatus($weeklyCalendar, 200, 'ADMIN can open the weekly transport calendar');
+    expectContains($weeklyCalendar['body'], 'Schedule test cargo', 'Weekly calendar lists scheduled cargo');
+    expectStatus(
+        $admin->get('/?page=calendar&view=day&date=invalid'),
+        422,
+        'Calendar rejects invalid dates'
+    );
 
     $financePage = $admin->get('/?page=finances');
     expectStatus($financePage, 200, 'ADMIN can open transport finances');
@@ -640,7 +667,7 @@ try {
 
     $adminAccountsPage = $admin->get('/?page=users');
     expectStatus($adminAccountsPage, 200, 'ADMIN can open account management');
-    expectContains($adminAccountsPage['body'], 'assets/app-theme.css?v=20261110', 'Account management loads the shared application theme');
+    expectContains($adminAccountsPage['body'], 'assets/app-theme.css?v=20261113', 'Account management loads the shared application theme');
     expectContains($adminAccountsPage['body'], $dispatcherEmail, 'ADMIN sees dispatcher accounts');
     expectContains($adminAccountsPage['body'], $historyDispatcherEmail, 'ADMIN sees dispatcher with transport history');
     expectNotContains($adminAccountsPage['body'], $adminEmail, 'ADMIN cannot see own ADMIN account');
@@ -759,6 +786,11 @@ try {
         $dispatcher->login("test-dispatcher-second-{$identifier}@example.invalid", $password),
         302,
         'DISPATCHER login succeeds'
+    );
+    expectStatus(
+        $dispatcher->get('/?page=calendar&view=day&date=2025-03-01'),
+        200,
+        'DISPATCHER can view the transport calendar'
     );
     expectStatus($dispatcher->get('/?page=customers'), 200, 'DISPATCHER can view customers');
     expectStatus($dispatcher->get('/?page=users'), 403, 'DISPATCHER cannot access account management');
