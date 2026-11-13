@@ -182,7 +182,7 @@
         <section class="platform-section" id="platforma" aria-labelledby="platform-title">
             <div class="section-heading-block" data-reveal>
                 <p class="section-kicker"><span>02</span> NJË PAMJE, KONTROLL I PLOTË</p>
-                <h2 id="platform-title">Më pak kërkim.<br><span>Më shumë përpara.</span></h2>
+                <h2 id="platform-title">Më pak kërkim.<br><span>Më shumë transparence.</span></h2>
                 <p>Një hapësirë e përbashkët për informacionin që mban operacionet në lëvizje.</p>
             </div>
             <div class="feature-grid">

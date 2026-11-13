@@ -470,7 +470,11 @@ try {
     }
 
     $financeDetail = $admin->get($financeTransportPath);
-    expectContains($financeDetail['body'], '1.250,50 €', 'Finance detail displays saved revenue in EUR');
+    expectContains(
+        $financeDetail['body'],
+        'value="1250.50"',
+        'Finance detail prepopulates the saved revenue in its numeric euro field'
+    );
     expectContains($financeDetail['body'], '350,25 €', 'Finance detail sums multiple expenses');
     expectContains($financeDetail['body'], '900,25 €', 'Finance detail calculates transport profit');
     $expenseLookup = $pdo->prepare(
