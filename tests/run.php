@@ -91,11 +91,12 @@ final class TestBrowser
     }
 }
 
-function expectStatus(array $response, int $expected, string $description): void
+function expectStatus(array|int $response, int $expected, string $description): void
 {
-    if ($response['status'] !== $expected) {
+    $status = is_array($response) ? $response['status'] : $response;
+    if ($status !== $expected) {
         throw new RuntimeException(
-            "{$description}: expected HTTP {$expected}, received {$response['status']}."
+            "{$description}: expected HTTP {$expected}, received {$status}."
         );
     }
     echo "PASS {$description}\n";
@@ -168,6 +169,53 @@ function createDatabaseConnection(string $host, string $port, string $database):
             PDO::ATTR_EMULATE_PREPARES => false,
         ]
     );
+}
+
+function apiRequest(
+    string $baseUrl,
+    string $method,
+    string $action,
+    ?string $token = null,
+    ?array $payload = null,
+    array $query = []
+): array {
+    $queryString = http_build_query(['action' => $action] + $query);
+    $headers = ['Accept: application/json', 'Connection: close'];
+    if ($token !== null) {
+        $headers[] = 'Authorization: Bearer ' . $token;
+    }
+    $content = '';
+    if ($payload !== null) {
+        $headers[] = 'Content-Type: application/json';
+        $content = json_encode($payload, JSON_THROW_ON_ERROR);
+    }
+    $context = stream_context_create([
+        'http' => [
+            'method' => $method,
+            'header' => implode("\r\n", $headers),
+            'content' => $content,
+            'ignore_errors' => true,
+            'timeout' => 5,
+        ],
+    ]);
+    $body = file_get_contents($baseUrl . '/api.php?' . $queryString, false, $context);
+    if ($body === false) {
+        throw new RuntimeException("Mobile API request failed: {$method} {$action}");
+    }
+    $status = null;
+    foreach ($http_response_header as $header) {
+        if (preg_match('/^HTTP\/\S+\s+(\d{3})/', $header, $matches) === 1) {
+            $status = (int) $matches[1];
+        }
+    }
+    if ($status === null) {
+        throw new RuntimeException("Mobile API response had no status: {$method} {$action}");
+    }
+    $decoded = json_decode($body, true);
+    if (!is_array($decoded)) {
+        throw new RuntimeException("Mobile API returned invalid JSON: {$method} {$action}");
+    }
+    return ['status' => $status, 'json' => $decoded, 'body' => $body];
 }
 
 $serverProcess = null;
@@ -380,6 +428,61 @@ try {
     $customerCheck->execute(['email' => "customer-{$identifier}@example.invalid"]);
     $customerId = (int) $customerCheck->fetchColumn();
     expectTrue($customerId > 0, 'ADMIN customer creation persists');
+
+    expectStatus(
+        apiRequest($baseUrl, 'GET', 'resources')['status'],
+        401,
+        'Mobile API requires a bearer token'
+    );
+    expectStatus(
+        apiRequest($baseUrl, 'POST', 'login', null, ['email' => $adminEmail, 'password' => 'wrong-password'])['status'],
+        401,
+        'Mobile API rejects invalid login credentials'
+    );
+    $mobileLogin = apiRequest(
+        $baseUrl,
+        'POST',
+        'login',
+        null,
+        ['email' => $adminEmail, 'password' => $password]
+    );
+    expectStatus($mobileLogin['status'], 200, 'ADMIN can obtain a mobile API token');
+    $mobileToken = $mobileLogin['json']['data']['token'] ?? null;
+    expectTrue(
+        is_string($mobileToken) && preg_match('/^[a-f0-9]{64}$/D', $mobileToken) === 1,
+        'Mobile API returns an opaque token'
+    );
+    $storedToken = $pdo->prepare('SELECT token_hash FROM mobile_api_tokens WHERE user_id = :user_id');
+    $storedToken->execute(['user_id' => $adminId]);
+    expectTrue(
+        hash_equals(hash('sha256', $mobileToken), (string) $storedToken->fetchColumn()),
+        'Mobile API stores only a hash of the bearer token'
+    );
+    expectStatus(apiRequest($baseUrl, 'GET', 'me', $mobileToken)['status'], 200, 'Mobile token authenticates API requests');
+    expectStatus(
+        apiRequest($baseUrl, 'GET', 'resources', $mobileToken)['status'],
+        200,
+        'Authenticated user can load mobile form resources'
+    );
+    $expireToken = $pdo->prepare(
+        'UPDATE mobile_api_tokens SET expires_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 SECOND)
+        WHERE token_hash = :token_hash'
+    );
+    $expireToken->execute(['token_hash' => hash('sha256', $mobileToken)]);
+    expectStatus(
+        apiRequest($baseUrl, 'GET', 'me', $mobileToken)['status'],
+        401,
+        'Expired mobile API token is rejected'
+    );
+    $mobileLogin = apiRequest(
+        $baseUrl,
+        'POST',
+        'login',
+        null,
+        ['email' => $adminEmail, 'password' => $password]
+    );
+    $mobileToken = $mobileLogin['json']['data']['token'];
+
     $driverFixture = $pdo->prepare(
         'INSERT INTO drivers (full_name, license_number, phone, email) VALUES (:name, :license, :phone, :email)'
     );
@@ -404,6 +507,71 @@ try {
     $scheduleVehicleOne = (int) $pdo->lastInsertId();
     $vehicleFixture->execute(['plate' => "SCHED-2-{$identifier}", 'type' => 'Test van', 'capacity' => 1]);
     $scheduleVehicleTwo = (int) $pdo->lastInsertId();
+
+    $mobileTransport = [
+        'customer_id' => $customerId,
+        'driver_id' => $scheduleDriverOne,
+        'vehicle_id' => $scheduleVehicleOne,
+        'pickup_address' => 'Mobile API pickup',
+        'destination_address' => 'Mobile API destination',
+        'cargo_description' => 'Mobile API test cargo',
+        'scheduled_date' => '2025-03-02T10:00',
+        'scheduled_end' => '2025-03-02T12:00',
+        'status' => 'PLANNED',
+    ];
+    $mobileCreate = apiRequest($baseUrl, 'POST', 'transport', $mobileToken, $mobileTransport);
+    expectStatus($mobileCreate['status'], 201, 'ADMIN can create a transport through the mobile API');
+    $mobileTransportId = (int) ($mobileCreate['json']['data']['id'] ?? 0);
+    expectTrue(
+        $mobileTransportId > 0 && (int) ($mobileCreate['json']['data']['customer_id'] ?? 0) === $customerId,
+        'Mobile API returns the created transport details'
+    );
+    $mobileUpdateFields = $mobileTransport;
+    $mobileUpdateFields['status'] = 'IN_PROGRESS';
+    expectStatus(
+        apiRequest(
+            $baseUrl,
+            'PUT',
+            'transport',
+            $mobileToken,
+            $mobileUpdateFields,
+            ['id' => $mobileTransportId]
+        )['status'],
+        200,
+        'ADMIN can update a transport status through the mobile API'
+    );
+    $mobileFiltered = apiRequest(
+        $baseUrl,
+        'GET',
+        'transports',
+        $mobileToken,
+        null,
+        ['status' => 'IN_PROGRESS']
+    );
+    expectStatus($mobileFiltered['status'], 200, 'Mobile API supports transport status filters');
+    expectTrue(
+        count($mobileFiltered['json']['data'] ?? []) === 1
+            && (int) $mobileFiltered['json']['data'][0]['id'] === $mobileTransportId,
+        'Mobile API returns matching filtered transports'
+    );
+    $overlappingMobileTransport = $mobileTransport;
+    $overlappingMobileTransport['scheduled_date'] = '2025-03-02T11:00';
+    $overlappingMobileTransport['scheduled_end'] = '2025-03-02T13:00';
+    expectStatus(
+        apiRequest($baseUrl, 'POST', 'transport', $mobileToken, $overlappingMobileTransport)['status'],
+        422,
+        'Mobile API rejects overlapping driver and vehicle assignments'
+    );
+    expectStatus(
+        apiRequest($baseUrl, 'POST', 'logout', $mobileToken)['status'],
+        200,
+        'Mobile API logout revokes the bearer token'
+    );
+    expectStatus(
+        apiRequest($baseUrl, 'GET', 'me', $mobileToken)['status'],
+        401,
+        'Revoked mobile token cannot authenticate again'
+    );
 
     $transportForm = $admin->get('/?page=transports&action=create');
     $transportCsrf = $admin->csrfToken($transportForm['body']);

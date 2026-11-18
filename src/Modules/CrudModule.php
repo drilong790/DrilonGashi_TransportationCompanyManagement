@@ -810,6 +810,11 @@ final class CrudModule
         return array_values(array_unique($warnings));
     }
 
+    public static function notifyTransportChanges(PDO $pdo, int $transportId, ?array $previousRecord): array
+    {
+        return self::sendTransportNotifications($pdo, $transportId, $previousRecord);
+    }
+
     private static function transportStatusLabel(string $status): string
     {
         return match ($status) {
