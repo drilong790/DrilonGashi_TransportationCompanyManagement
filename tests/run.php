@@ -508,6 +508,56 @@ try {
     $vehicleFixture->execute(['plate' => "SCHED-2-{$identifier}", 'type' => 'Test van', 'capacity' => 1]);
     $scheduleVehicleTwo = (int) $pdo->lastInsertId();
 
+    $driverAccountEmail = "schedule-driver-one-{$identifier}@example.invalid";
+    $driverAccountPassword = 'DriverMobilePassword!2026';
+    $driverAccountsPage = $admin->get('/?page=users');
+    $driverAccountCreate = $admin->post('/?page=users', [
+        'csrf_token' => $admin->csrfToken($driverAccountsPage['body']),
+        'account_action' => 'create_driver',
+        'driver_id' => (string) $scheduleDriverOne,
+        'password' => $driverAccountPassword,
+        'password_confirmation' => $driverAccountPassword,
+    ]);
+    expectStatus($driverAccountCreate, 302, 'ADMIN can create a mobile account for an existing driver');
+    $driverAccountQuery = $pdo->prepare(
+        'SELECT id, role, driver_id, is_active, email_verified_at FROM users WHERE email = :email'
+    );
+    $driverAccountQuery->execute(['email' => $driverAccountEmail]);
+    $driverAccount = $driverAccountQuery->fetch();
+    expectTrue(
+        $driverAccount !== false
+            && $driverAccount['role'] === 'DRIVER'
+            && (int) $driverAccount['driver_id'] === $scheduleDriverOne
+            && (int) $driverAccount['is_active'] === 1
+            && $driverAccount['email_verified_at'] !== null,
+        'Driver account is active and linked to its driver record'
+    );
+    $driverWebLogin = new TestBrowser($baseUrl);
+    expectStatus(
+        $driverWebLogin->login($driverAccountEmail, $driverAccountPassword),
+        401,
+        'Driver accounts cannot sign in to the web application'
+    );
+    $driverMobileLogin = apiRequest(
+        $baseUrl,
+        'POST',
+        'login',
+        null,
+        ['email' => $driverAccountEmail, 'password' => $driverAccountPassword]
+    );
+    expectStatus($driverMobileLogin['status'], 200, 'Driver can sign in to the mobile API');
+    $driverMobileToken = $driverMobileLogin['json']['data']['token'];
+    expectTrue(
+        ($driverMobileLogin['json']['data']['user']['role'] ?? null) === 'DRIVER'
+            && (int) ($driverMobileLogin['json']['data']['user']['driver_id'] ?? 0) === $scheduleDriverOne,
+        'Mobile login returns the linked driver role'
+    );
+    expectStatus(
+        apiRequest($baseUrl, 'GET', 'resources', $driverMobileToken)['status'],
+        403,
+        'Driver cannot load management resources'
+    );
+
     $mobileTransport = [
         'customer_id' => $customerId,
         'driver_id' => $scheduleDriverOne,
@@ -526,6 +576,102 @@ try {
         $mobileTransportId > 0 && (int) ($mobileCreate['json']['data']['customer_id'] ?? 0) === $customerId,
         'Mobile API returns the created transport details'
     );
+    $driverTransports = apiRequest($baseUrl, 'GET', 'transports', $driverMobileToken);
+    expectStatus($driverTransports['status'], 200, 'Driver can load assigned transports');
+    expectTrue(
+        count($driverTransports['json']['data'] ?? []) === 1
+            && (int) $driverTransports['json']['data'][0]['id'] === $mobileTransportId,
+        'Driver transport list contains only the assigned transport'
+    );
+    $driverFilteredTransports = apiRequest(
+        $baseUrl,
+        'GET',
+        'transports',
+        $driverMobileToken,
+        null,
+        ['driver_id' => (string) $scheduleDriverTwo]
+    );
+    expectTrue(
+        ($driverFilteredTransports['json']['data'] ?? []) === [],
+        'Driver cannot bypass assignment scope with a driver filter'
+    );
+    $driverDashboard = apiRequest($baseUrl, 'GET', 'dashboard', $driverMobileToken);
+    expectTrue(
+        (int) ($driverDashboard['json']['data']['total'] ?? 0) === 1,
+        'Driver dashboard counts only assigned transports'
+    );
+    $foreignMobileTransport = $mobileTransport;
+    $foreignMobileTransport['driver_id'] = $scheduleDriverTwo;
+    $foreignMobileTransport['vehicle_id'] = $scheduleVehicleTwo;
+    $foreignMobileTransport['pickup_address'] = 'Other driver pickup';
+    $foreignMobileTransport['scheduled_date'] = '2025-03-02T14:00';
+    $foreignMobileTransport['scheduled_end'] = '2025-03-02T16:00';
+    $foreignMobileCreate = apiRequest($baseUrl, 'POST', 'transport', $mobileToken, $foreignMobileTransport);
+    expectStatus($foreignMobileCreate['status'], 201, 'ADMIN can assign a separate transport to another driver');
+    $foreignTransportId = (int) $foreignMobileCreate['json']['data']['id'];
+    expectStatus(
+        apiRequest($baseUrl, 'GET', 'transport', $driverMobileToken, null, ['id' => (string) $foreignTransportId])['status'],
+        404,
+        'Driver cannot load another driver transport'
+    );
+    expectStatus(
+        apiRequest(
+            $baseUrl,
+            'POST',
+            'driver-status',
+            $driverMobileToken,
+            ['transport_id' => $foreignTransportId, 'status' => 'IN_PROGRESS']
+        )['status'],
+        404,
+        'Driver cannot change another driver transport status'
+    );
+    expectStatus(
+        apiRequest($baseUrl, 'POST', 'transport', $driverMobileToken, $mobileTransport)['status'],
+        403,
+        'Driver cannot create transports'
+    );
+    expectStatus(
+        apiRequest(
+            $baseUrl,
+            'POST',
+            'driver-status',
+            $driverMobileToken,
+            ['transport_id' => $mobileTransportId, 'status' => 'IN_PROGRESS']
+        )['status'],
+        200,
+        'Driver can start an assigned planned transport'
+    );
+    expectStatus(
+        apiRequest(
+            $baseUrl,
+            'POST',
+            'driver-status',
+            $driverMobileToken,
+            ['transport_id' => $mobileTransportId, 'status' => 'COMPLETED']
+        )['status'],
+        200,
+        'Driver can complete an assigned in-progress transport'
+    );
+    expectStatus(
+        apiRequest(
+            $baseUrl,
+            'POST',
+            'driver-status',
+            $driverMobileToken,
+            ['transport_id' => $mobileTransportId, 'status' => 'IN_PROGRESS']
+        )['status'],
+        409,
+        'Driver cannot move a completed transport backwards'
+    );
+    $disableDriver = $pdo->prepare('UPDATE drivers SET is_active = 0 WHERE id = :id');
+    $disableDriver->execute(['id' => $scheduleDriverOne]);
+    expectStatus(
+        apiRequest($baseUrl, 'GET', 'me', $driverMobileToken)['status'],
+        401,
+        'Deactivated driver cannot continue using an existing mobile token'
+    );
+    $disableDriver = $pdo->prepare('UPDATE drivers SET is_active = 1 WHERE id = :id');
+    $disableDriver->execute(['id' => $scheduleDriverOne]);
     $mobileUpdateFields = $mobileTransport;
     $mobileUpdateFields['status'] = 'IN_PROGRESS';
     expectStatus(

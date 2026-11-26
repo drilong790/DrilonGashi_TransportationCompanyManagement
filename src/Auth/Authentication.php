@@ -80,6 +80,35 @@ final class Authentication
         return $user;
     }
 
+    public static function attemptMobile(PDO $pdo, string $email, string $password): ?array
+    {
+        $statement = $pdo->prepare(
+            "SELECT u.id, u.full_name, u.email, u.password_hash, u.role, u.driver_id
+            FROM users u
+            LEFT JOIN drivers d ON d.id = u.driver_id
+            WHERE u.email = :email AND u.is_active = 1 AND u.email_verified_at IS NOT NULL
+                AND u.role IN ('SUPERADMIN', 'ADMIN', 'DISPATCHER', 'DRIVER')
+                AND (u.role <> 'DRIVER' OR (u.driver_id IS NOT NULL AND d.is_active = 1))
+            LIMIT 1"
+        );
+        $statement->execute(['email' => $email]);
+        $user = $statement->fetch();
+        if ($user === false || !password_verify($password, $user['password_hash'])) {
+            return null;
+        }
+
+        if (password_needs_rehash($user['password_hash'], PASSWORD_DEFAULT)) {
+            $update = $pdo->prepare('UPDATE users SET password_hash = :password_hash WHERE id = :id');
+            $update->execute([
+                'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                'id' => $user['id'],
+            ]);
+        }
+
+        unset($user['password_hash']);
+        return $user;
+    }
+
     public static function register(PDO $pdo, string $fullName, string $email, string $password): ?int
     {
         return self::createAccount($pdo, $fullName, $email, $password, 'DISPATCHER');

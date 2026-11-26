@@ -16,6 +16,7 @@ final class AccountController
             'adminValues' => ['full_name' => '', 'email' => ''],
             'adminSuccess' => null,
             'accounts' => [],
+            'availableDrivers' => [],
             'accountsError' => null,
             'accountsSuccess' => null,
         ];
@@ -109,7 +110,7 @@ final class AccountController
             FROM users u
             WHERE (:is_superadmin = 1
                     AND (u.role <> :protected_role OR u.id = :current_user_id))
-                OR (:is_admin = 1 AND u.role = :dispatcher_role)
+                OR (:is_admin = 1 AND u.role IN (:dispatcher_role, :driver_role))
             ORDER BY u.role, u.full_name, u.id'
         );
         $accountsStatement->execute([
@@ -118,8 +119,16 @@ final class AccountController
             'current_user_id' => (int) $user['id'],
             'is_admin' => $user['role'] === 'ADMIN' ? 1 : 0,
             'dispatcher_role' => 'DISPATCHER',
+            'driver_role' => 'DRIVER',
         ]);
         $state['accounts'] = $accountsStatement->fetchAll();
+        $state['availableDrivers'] = $pdo->query(
+            'SELECT d.id, d.full_name, d.email
+            FROM drivers d
+            WHERE d.is_active = 1 AND d.email IS NOT NULL AND TRIM(d.email) <> \'\'
+                AND NOT EXISTS (SELECT 1 FROM users u WHERE u.driver_id = d.id OR u.email = d.email)
+            ORDER BY d.full_name'
+        )->fetchAll();
     }
 
     private static function handleAccountAction(PDO $pdo, array $user, array &$state): void
@@ -133,9 +142,11 @@ final class AccountController
         if (!Authentication::isValidCsrfToken($_POST['csrf_token'] ?? null)) {
             http_response_code(400);
             $state['accountsError'] = 'Kërkesa skadoi ose nuk është e vlefshme. Rifresko faqen dhe provo përsëri.';
-        } elseif (!is_string($action) || !in_array($action, ['update_email', 'reset_password', 'delete'], true)) {
+        } elseif (!is_string($action) || !in_array($action, ['create_driver', 'update_email', 'reset_password', 'delete'], true)) {
             http_response_code(422);
             $state['accountsError'] = 'Veprimi i kërkuar nuk është i vlefshëm.';
+        } elseif ($action === 'create_driver') {
+            self::createDriverAccount($pdo, $state);
         } elseif ($accountId === false) {
             http_response_code(422);
             $state['accountsError'] = 'Llogaria e zgjedhur nuk është e vlefshme.';
@@ -154,9 +165,12 @@ final class AccountController
             ) {
                 http_response_code(409);
                 $state['accountsError'] = 'Llogaria e superadministratorit është e mbrojtur.';
-            } elseif ($user['role'] === 'ADMIN' && $account['role'] !== 'DISPATCHER') {
+            } elseif (
+                $user['role'] === 'ADMIN'
+                && !in_array($account['role'], ['DISPATCHER', 'DRIVER'], true)
+            ) {
                 http_response_code(403);
-                $state['accountsError'] = 'Administratorët mund të menaxhojnë vetëm llogaritë e dispeçerëve.';
+                $state['accountsError'] = 'Administratorët mund të menaxhojnë vetëm llogaritë e dispeçerëve dhe shoferëve.';
             } elseif ($action === 'update_email') {
                 self::updateEmail($pdo, $account, $accountId, $user, $state);
             } elseif ($action === 'reset_password') {
@@ -165,6 +179,71 @@ final class AccountController
                 self::deleteAccount($pdo, $accountId, $user, $state);
             }
         }
+    }
+
+    private static function createDriverAccount(PDO $pdo, array &$state): void
+    {
+        $driverId = filter_var(
+            $_POST['driver_id'] ?? null,
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1]]
+        );
+        $password = $_POST['password'] ?? null;
+        $confirmation = $_POST['password_confirmation'] ?? null;
+        if ($driverId === false) {
+            http_response_code(422);
+            $state['accountsError'] = 'Zgjidh një shofer të vlefshëm.';
+            return;
+        }
+        if (!is_string($password) || strlen($password) < 12 || strlen($password) > 72) {
+            http_response_code(422);
+            $state['accountsError'] = 'Fjalëkalimi duhet të ketë të paktën 12 karaktere dhe maksimumi 72 bajte.';
+            return;
+        }
+        if (!is_string($confirmation) || !hash_equals($password, $confirmation)) {
+            http_response_code(422);
+            $state['accountsError'] = 'Fjalëkalimet nuk përputhen.';
+            return;
+        }
+
+        $driverStatement = $pdo->prepare(
+            'SELECT d.full_name, d.email
+            FROM drivers d
+            WHERE d.id = :id AND d.is_active = 1 AND d.email IS NOT NULL AND TRIM(d.email) <> \'\'
+                AND NOT EXISTS (SELECT 1 FROM users u WHERE u.driver_id = d.id OR u.email = d.email)'
+        );
+        $driverStatement->execute(['id' => $driverId]);
+        $driver = $driverStatement->fetch();
+        if ($driver === false) {
+            http_response_code(409);
+            $state['accountsError'] = 'Shoferi nuk ka email të vlefshëm ose ka tashmë një llogari.';
+            return;
+        }
+
+        try {
+            $create = $pdo->prepare(
+                'INSERT INTO users
+                    (full_name, email, password_hash, role, driver_id, is_active, email_verified_at)
+                VALUES (:full_name, :email, :password_hash, \'DRIVER\', :driver_id, 1, CURRENT_TIMESTAMP)'
+            );
+            $create->execute([
+                'full_name' => $driver['full_name'],
+                'email' => mb_strtolower(trim($driver['email'])),
+                'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                'driver_id' => $driverId,
+            ]);
+        } catch (\PDOException $exception) {
+            if (($exception->errorInfo[1] ?? null) !== 1062) {
+                throw $exception;
+            }
+            http_response_code(409);
+            $state['accountsError'] = 'Email-i i shoferit është përdorur tashmë për një llogari.';
+            return;
+        }
+
+        $_SESSION['flash_message'] = 'Llogaria e shoferit u krijua me sukses. Shoferi mund të hyjë në aplikacion.';
+        header('Location: ?page=users');
+        exit;
     }
 
     private static function updateEmail(
@@ -276,7 +355,7 @@ final class AccountController
                 "DELETE FROM users
                 WHERE id = :id AND id <> :current_user_id
                     AND role <> 'SUPERADMIN'
-                    AND (:is_superadmin = 1 OR role = 'DISPATCHER')"
+                    AND (:is_superadmin = 1 OR role IN ('DISPATCHER', 'DRIVER'))"
             );
             $deleteStatement->execute([
                 'id' => $accountId,

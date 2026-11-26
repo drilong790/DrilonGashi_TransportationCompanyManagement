@@ -1,13 +1,16 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text } from 'react-native';
-import { ApiError, clearToken, loadTransport, storedToken } from '../../api';
+import { ApiError, clearToken, currentUser, loadTransport, storedToken, storedUser, updateDriverStatus } from '../../api';
+import { loadCachedTransports, queueDriverStatus, updateCachedTransport } from '../../offline';
 import { DetailScreen } from '../../screens/DetailScreen';
+import { colors } from '../../theme';
 import { Transport } from '../../types';
 
 export default function TransportDetailRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [transport, setTransport] = useState<Transport | null>(null);
+  const [userRole, setUserRole] = useState<'SUPERADMIN' | 'ADMIN' | 'DISPATCHER' | 'DRIVER' | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -21,7 +24,27 @@ export default function TransportDetailRoute() {
       router.replace('/');
       throw new Error('Sesioni përfundoi.');
     }
-    return loadTransport(token, transportId);
+    const savedUser = await storedUser();
+    if (!savedUser) {
+      router.replace('/');
+      throw new Error('Profili lokal i llogarisë nuk u gjet.');
+    }
+    let user = savedUser;
+    try {
+      user = await currentUser(token);
+    } catch (requestError) {
+      if (!(requestError instanceof ApiError && requestError.status === 0)) throw requestError;
+    }
+    setUserRole(user.role);
+    try {
+      return await loadTransport(token, transportId);
+    } catch (requestError) {
+      if (!(requestError instanceof ApiError && requestError.status === 0)) throw requestError;
+      const cached = await loadCachedTransports(user.id);
+      const transport = cached.find((item) => item.id === transportId);
+      if (!transport) throw new Error('Transporti nuk u gjet në të dhënat e ruajtura.');
+      return transport;
+    }
   }, [id]);
 
   useFocusEffect(
@@ -67,10 +90,35 @@ export default function TransportDetailRoute() {
     }
   };
 
+  const changeDriverStatus = async (
+    transportId: number,
+    status: 'IN_PROGRESS' | 'COMPLETED',
+  ): Promise<boolean> => {
+    const token = await storedToken();
+    if (!token) {
+      router.replace('/');
+      throw new Error('Sesioni përfundoi.');
+    }
+    const user = await storedUser();
+    if (!user) throw new Error('Profili lokal i llogarisë nuk u gjet.');
+    try {
+      const updated = await updateDriverStatus(token, transportId, status);
+      setTransport(updated);
+      await updateCachedTransport(user.id, transportId, status);
+      return false;
+    } catch (requestError) {
+      if (!(requestError instanceof ApiError && requestError.status === 0)) throw requestError;
+      await queueDriverStatus(user.id, { transport_id: transportId, status });
+      await updateCachedTransport(user.id, transportId, status);
+      setTransport((current) => current ? { ...current, status } : current);
+      return true;
+    }
+  };
+
   if (!transport) {
     return (
       <SafeAreaView style={styles.center}>
-        {loading ? <ActivityIndicator color="#078b81" size="large" /> : <Text style={styles.error}>{error}</Text>}
+        {loading ? <ActivityIndicator color={colors.amber} size="large" /> : <Text style={styles.error}>{error}</Text>}
         {!loading && <Pressable onPress={() => router.back()}><Text style={styles.back}>Kthehu</Text></Pressable>}
       </SafeAreaView>
     );
@@ -84,12 +132,14 @@ export default function TransportDetailRoute() {
       onBack={() => router.back()}
       onEdit={() => router.push({ pathname: '/transport/form', params: { id: String(transport.id) } })}
       onRefresh={() => void refresh()}
+      isDriver={userRole === 'DRIVER'}
+      onDriverStatusChange={changeDriverStatus}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  center: { alignItems: 'center', backgroundColor: '#f3f6f9', flex: 1, justifyContent: 'center', padding: 24 },
-  error: { color: '#a73b3b', fontSize: 14, textAlign: 'center' },
-  back: { color: '#078b81', fontSize: 15, fontWeight: '800', marginTop: 16, padding: 12 },
+  center: { alignItems: 'center', backgroundColor: colors.background, flex: 1, justifyContent: 'center', padding: 24 },
+  error: { color: colors.danger, fontSize: 14, textAlign: 'center' },
+  back: { color: colors.amberLight, fontSize: 15, fontWeight: '800', marginTop: 16, padding: 12 },
 });

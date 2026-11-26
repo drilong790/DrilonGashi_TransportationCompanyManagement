@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { colors } from '../theme';
 import { Resource } from '../types';
 
 type Props = {
@@ -63,24 +64,26 @@ export function SelectField({ label, value, options, onChange, optional = false 
 }
 
 const styles = StyleSheet.create({
-  label: { color: '#304258', fontSize: 13, fontWeight: '700', marginBottom: 7, marginTop: 16 },
+  label: { color: '#c3c9c7', fontSize: 13, fontWeight: '700', marginBottom: 7, marginTop: 16 },
   select: {
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderColor: '#dce4ec',
-    borderRadius: 12,
+    backgroundColor: '#09151e',
+    borderColor: '#ffffff20',
+    borderRadius: 10,
     borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
     minHeight: 50,
     paddingHorizontal: 14,
   },
-  value: { color: '#15263b', fontSize: 15 },
-  placeholder: { color: '#8b98a8', fontSize: 15 },
-  chevron: { color: '#62758a', fontSize: 22 },
-  overlay: { backgroundColor: '#071a2b88', flex: 1, justifyContent: 'flex-end' },
+  value: { color: colors.text, fontSize: 15 },
+  placeholder: { color: '#77868b', fontSize: 15 },
+  chevron: { color: colors.amberLight, fontSize: 22 },
+  overlay: { backgroundColor: '#03090fc4', flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderTopWidth: 1,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '78%',
@@ -88,21 +91,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
   },
-  handle: { alignSelf: 'center', backgroundColor: '#d7e0e8', borderRadius: 4, height: 5, marginBottom: 16, width: 42 },
-  title: { color: '#15263b', fontSize: 18, fontWeight: '800', marginBottom: 10 },
-  empty: { color: '#718196', paddingVertical: 20 },
+  handle: { alignSelf: 'center', backgroundColor: '#53616a', borderRadius: 4, height: 5, marginBottom: 16, width: 42 },
+  title: { color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: 10 },
+  empty: { color: colors.textMuted, paddingVertical: 20 },
   option: {
     alignItems: 'center',
-    borderBottomColor: '#edf1f5',
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
     minHeight: 50,
     paddingHorizontal: 8,
   },
-  optionSelected: { backgroundColor: '#eef7f6' },
-  optionText: { color: '#26394f', fontSize: 15 },
-  check: { color: '#078b81', fontSize: 18, fontWeight: '800' },
-  cancel: { alignItems: 'center', backgroundColor: '#eef2f6', borderRadius: 12, marginTop: 14, padding: 14 },
-  cancelText: { color: '#304258', fontWeight: '700' },
+  optionSelected: { backgroundColor: `${colors.amber}12` },
+  optionText: { color: colors.text, fontSize: 15 },
+  check: { color: colors.amberLight, fontSize: 18, fontWeight: '800' },
+  cancel: { alignItems: 'center', backgroundColor: '#ffffff0d', borderRadius: 10, marginTop: 14, padding: 14 },
+  cancelText: { color: '#c0c9c7', fontWeight: '700' },
 });

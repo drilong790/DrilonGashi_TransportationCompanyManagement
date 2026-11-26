@@ -89,7 +89,7 @@ $pages = [
     ],
     'users' => [
         'title' => 'Menaxho llogaritë',
-        'description' => 'Shiko përdoruesit dhe fshi llogari që nuk kanë transport të regjistruar.',
+        'description' => 'Menaxho llogaritë e ekipit dhe krijo hyrje për shoferët.',
         'view' => 'users.php',
     ],
     'not_found' => [
@@ -125,6 +125,7 @@ $adminError = null;
 $adminValues = ['full_name' => '', 'email' => ''];
 $adminSuccess = null;
 $accounts = [];
+$availableDrivers = [];
 $accountsError = null;
 $accountsSuccess = null;
 $databaseError = null;
@@ -185,6 +186,7 @@ try {
             $adminValues = $accountState['adminValues'];
             $adminSuccess = $accountState['adminSuccess'];
             $accounts = $accountState['accounts'];
+            $availableDrivers = $accountState['availableDrivers'];
             $accountsError = $accountState['accountsError'];
             $accountsSuccess = $accountState['accountsSuccess'];
         } elseif (in_array($pageKey, ['customers', 'drivers', 'vehicles', 'transports'], true)) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -8,8 +8,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { loadResources } from '../api';
 import { SelectField } from '../components/SelectField';
+import { colors } from '../theme';
 import { Transport, TransportInput, TransportResources, TransportStatus } from '../types';
 
 const statusOptions: { id: number; label: string }[] = [
@@ -74,38 +74,23 @@ function fromDatabaseDate(value: string): string {
 }
 
 export function TransportFormScreen({
-  token,
   transport,
+  resources,
+  loadingResources,
+  resourceError,
   onBack,
   onSave,
 }: {
-  token: string;
   transport: Transport | null;
+  resources: TransportResources | null;
+  loadingResources: boolean;
+  resourceError: string;
   onBack: () => void;
   onSave: (values: TransportInput) => Promise<void>;
 }) {
   const [values, setValues] = useState<Values>(() => valuesFromTransport(transport));
-  const [resources, setResources] = useState<TransportResources | null>(null);
-  const [loadingResources, setLoadingResources] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    let active = true;
-    loadResources(token)
-      .then((loaded) => {
-        if (active) setResources(loaded);
-      })
-      .catch((requestError: unknown) => {
-        if (active) setError(requestError instanceof Error ? requestError.message : 'Të dhënat nuk u ngarkuan.');
-      })
-      .finally(() => {
-        if (active) setLoadingResources(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [token, transport]);
 
   const update = <K extends keyof Values>(field: K, value: Values[K]) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -174,7 +159,7 @@ export function TransportFormScreen({
         multiline={multiline}
         onChangeText={(text) => update(field, text)}
         placeholder={placeholder}
-        placeholderTextColor="#9aa7b6"
+        placeholderTextColor="#77868b"
         style={[styles.input, multiline && styles.multiline]}
         textAlignVertical={multiline ? 'top' : 'center'}
         value={values[field]}
@@ -190,7 +175,7 @@ export function TransportFormScreen({
         <View style={styles.headerSpace} />
       </View>
       {loadingResources ? (
-        <View style={styles.loading}><ActivityIndicator color="#078b81" /><Text style={styles.help}>Po ngarkohen klientët dhe caktimet...</Text></View>
+        <View style={styles.loading}><ActivityIndicator color={colors.amber} /><Text style={styles.help}>Po ngarkohen klientët dhe caktimet...</Text></View>
       ) : (
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {resources && (
@@ -225,7 +210,7 @@ export function TransportFormScreen({
                 autoCapitalize="none"
                 onChangeText={(text) => update('scheduled_date', text)}
                 placeholder="2026-11-18T10:00"
-                placeholderTextColor="#9aa7b6"
+                placeholderTextColor="#77868b"
                 style={styles.input}
                 value={values.scheduled_date}
               />
@@ -234,7 +219,7 @@ export function TransportFormScreen({
                 autoCapitalize="none"
                 onChangeText={(text) => update('scheduled_end', text)}
                 placeholder="2026-11-18T11:00"
-                placeholderTextColor="#9aa7b6"
+                placeholderTextColor="#77868b"
                 style={styles.input}
                 value={values.scheduled_end}
               />
@@ -248,13 +233,15 @@ export function TransportFormScreen({
               />
             </>
           )}
-          {!!error && <Text style={styles.error}>{error}</Text>}
+          {!!(error || resourceError) && <Text style={styles.error}>{error || resourceError}</Text>}
           <Pressable disabled={saving || loadingResources || !resources} onPress={() => void submit()} style={[styles.save, (saving || !resources) && styles.disabled]}>
-            {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Ruaj transportin</Text>}
+            {saving ? <ActivityIndicator color="#17212a" /> : <Text style={styles.saveText}>Ruaj transportin</Text>}
           </Pressable>
         </ScrollView>
       )}
-      {!loadingResources && error && !resources && <Text style={styles.errorOnly}>{error}</Text>}
+      {!loadingResources && (error || resourceError) && !resources && (
+        <Text style={styles.errorOnly}>{error || resourceError}</Text>
+      )}
     </View>
   );
 }
@@ -263,36 +250,36 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   header: {
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderBottomColor: '#e8edf2',
+    backgroundColor: colors.background,
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: 'row',
     minHeight: 58,
     paddingHorizontal: 14,
   },
   back: { alignItems: 'center', height: 40, justifyContent: 'center', width: 36 },
-  backText: { color: '#18334c', fontSize: 34, lineHeight: 38 },
-  title: { color: '#23384e', flex: 1, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  backText: { color: colors.amberLight, fontSize: 34, lineHeight: 38 },
+  title: { color: colors.text, flex: 1, fontSize: 15, fontWeight: '800', textAlign: 'center' },
   headerSpace: { width: 36 },
   content: { padding: 18, paddingBottom: 35 },
-  section: { color: '#20364d', fontSize: 15, fontWeight: '800', marginTop: 16 },
-  label: { color: '#304258', fontSize: 13, fontWeight: '700', marginBottom: 7, marginTop: 16 },
+  section: { color: colors.amberLight, fontSize: 15, fontWeight: '800', marginTop: 16 },
+  label: { color: '#c3c9c7', fontSize: 13, fontWeight: '700', marginBottom: 7, marginTop: 16 },
   input: {
-    backgroundColor: '#fff',
-    borderColor: '#dce4ec',
-    borderRadius: 12,
+    backgroundColor: '#09151e',
+    borderColor: '#ffffff20',
+    borderRadius: 10,
     borderWidth: 1,
-    color: '#15263b',
+    color: colors.text,
     fontSize: 14,
     minHeight: 50,
     paddingHorizontal: 14,
   },
   multiline: { minHeight: 90, paddingTop: 12 },
   loading: { alignItems: 'center', flex: 1, justifyContent: 'center' },
-  help: { color: '#718196', fontSize: 13, marginTop: 12 },
-  error: { backgroundColor: '#fceeee', borderRadius: 10, color: '#a73b3b', fontSize: 12, lineHeight: 18, marginTop: 16, padding: 10 },
-  errorOnly: { color: '#a73b3b', fontSize: 13, marginHorizontal: 18, marginTop: 12 },
-  save: { alignItems: 'center', backgroundColor: '#078b81', borderRadius: 13, justifyContent: 'center', marginTop: 22, minHeight: 52 },
+  help: { color: colors.textMuted, fontSize: 13, marginTop: 12 },
+  error: { backgroundColor: '#652e2a36', borderColor: '#9c54504f', borderRadius: 10, borderWidth: 1, color: colors.danger, fontSize: 12, lineHeight: 18, marginTop: 16, padding: 10 },
+  errorOnly: { color: colors.danger, fontSize: 13, marginHorizontal: 18, marginTop: 12 },
+  save: { alignItems: 'center', backgroundColor: colors.amber, borderRadius: 11, justifyContent: 'center', marginTop: 22, minHeight: 52 },
   disabled: { opacity: 0.6 },
-  saveText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  saveText: { color: '#17212a', fontSize: 14, fontWeight: '800' },
 });

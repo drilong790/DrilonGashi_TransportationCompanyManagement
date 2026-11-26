@@ -111,13 +111,17 @@ Me MySQL në punë dhe përdoruesin e databazës të lejuar të krijojë/fshijë
 /Applications/XAMPP/xamppfiles/bin/php tests/run.php
 ```
 
-Testet mbulojnë hyrjen, rolet, modulet CRUD dhe menaxhimin e llogarive. Çdo ekzekutim krijon databazë prove me emër unik dhe e fshin në fund; nuk përdor databazën e aplikacionit. Dërgimi SMTP çaktivizohet për procesin e serverit testues, ndaj nuk dërgohen email-e reale. Për konfigurim tjetër të MySQL, cakto `DB_HOST`, `DB_PORT`, `DB_USER` dhe `DB_PASSWORD` para ekzekutimit.
+Testet mbulojnë hyrjen, rolet, modulet CRUD, menaxhimin e llogarive dhe kufizimet e shoferëve në API-në mobile. Çdo ekzekutim krijon databazë prove me emër unik dhe e fshin në fund; nuk përdor databazën e aplikacionit. Dërgimi SMTP çaktivizohet për procesin e serverit testues, ndaj nuk dërgohen email-e reale. Për konfigurim tjetër të MySQL, cakto `DB_HOST`, `DB_PORT`, `DB_USER` dhe `DB_PASSWORD` para ekzekutimit.
 
 ## Aplikacioni mobil me Expo Go
 
 Aplikacioni për Android/iOS gjendet te `mobile/` dhe përdor Expo Router. Ai përdor API-në JSON te `public/api.php`; token-i i hyrjes skadon pas 30 ditësh, ruhet në SecureStore dhe në databazë ruhet vetëm hash-i i tij.
 
-Për databazën ekzistuese, ekzekuto një herë [database/migrations/20261118_add_mobile_api_tokens.sql](database/migrations/20261118_add_mobile_api_tokens.sql). Instalimet e reja e marrin tabelën nga [database/schema.sql](database/schema.sql).
+Për databazën ekzistuese, ekzekuto një herë migrimet sipas radhës: [database/migrations/20261118_add_mobile_api_tokens.sql](database/migrations/20261118_add_mobile_api_tokens.sql), pastaj [database/migrations/20261126_add_mobile_driver_accounts.sql](database/migrations/20261126_add_mobile_driver_accounts.sql). Instalimet e reja i marrin tabelat dhe lidhjen e shoferëve nga [database/schema.sql](database/schema.sql).
+
+V2 përfshin llogari të veçanta shoferësh (hyrja e tyre lejohet vetëm në aplikacionin mobil), kalendar javor, cache dhe radhë sinkronizimi offline me riprovim/fshirje për veprimet e dështuara, kujtesa lokale një orë para nisjes dhe kyçje biometrike. Shoferët shohin vetëm transportet e caktuara për ta dhe mund të kalojnë statusin nga “Planifikuar” në “Në proces” e pastaj “Përfunduar”. Ruajtja e dëshmisë së dorëzimit nuk përfshihet.
+
+Cache-i dhe veprimet në pritje ruhen lokalisht në SQLite për secilën llogari. Krijimi offline ruhet si veprim i ri; ndryshimet ekzistuese të transportit nuk dërgohen në radhë offline. Për siguri, shqyrto gabimet e radhës te **Cilësimet → Ndryshime për sinkronizim** dhe provo sërish ose fshiji.
 
 1. Sigurohu që MySQL të jetë i ndezur në XAMPP. Serveri PHP do të përdorë portin 8000; nëse porti është i zënë, zgjidh një port tjetër të lirë.
 2. Nga direktoria kryesore e projektit, nis serverin PHP në rrjetin lokal:
@@ -146,6 +150,6 @@ Për databazën ekzistuese, ekzekuto një herë [database/migrations/20261118_ad
    npm start
    ```
 
-   Skano QR-në me Expo Go. Pas ndryshimit të `mobile/.env`, rinis Expo që të ngarkohet adresa e re. Projekti kërkon një version Node.js të mbështetur nga Expo (p.sh. Node 24 LTS); Node 25 nuk mbështetet nga versioni aktual i Expo.
+   Skano QR-në me Expo Go. Pas ndryshimit të `mobile/.env`, rinis Expo që të ngarkohet adresa e re. Projekti kërkon një version Node.js të mbështetur nga Expo (p.sh. Node 24 LTS); Node 25 nuk mbështetet nga versioni aktual i Expo. Kujtesat lokale mund të testohen në Expo Go; për Face ID/biometrikë në iOS duhet krijuar development build që të përfshihet konfigurimi native i plugin-it.
 
 API-ja dhe aplikacioni janë për testim lokal; ky udhëzim nuk publikon aplikacionin dhe nuk ekspozon serverin në internet. Mos i ruaj kredencialet apo `mobile/.env` në Git.

@@ -2,10 +2,20 @@ export type User = {
   id: number;
   full_name: string;
   email: string;
-  role: 'SUPERADMIN' | 'ADMIN' | 'DISPATCHER';
+  role: 'SUPERADMIN' | 'ADMIN' | 'DISPATCHER' | 'DRIVER';
+  driver_id: number | null;
 };
 
 export type TransportStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+
+export type DashboardSummary = {
+  total: number;
+  planned: number;
+  in_progress: number;
+  completed: number;
+  cancelled: number;
+  today: number;
+};
 
 export type Transport = {
   id: number;

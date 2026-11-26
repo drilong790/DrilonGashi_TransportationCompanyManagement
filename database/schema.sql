@@ -9,7 +9,7 @@ CREATE TABLE users (
     full_name VARCHAR(150) NOT NULL,
     email VARCHAR(150) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('SUPERADMIN', 'ADMIN', 'DISPATCHER') NOT NULL,
+    role ENUM('SUPERADMIN', 'ADMIN', 'DISPATCHER', 'DRIVER') NOT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     email_verified_at DATETIME NULL DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -83,6 +83,13 @@ CREATE TABLE vehicles (
     UNIQUE KEY uq_vehicles_plate_number (plate_number),
     KEY idx_vehicles_is_active (is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE users
+    ADD COLUMN driver_id INT UNSIGNED NULL AFTER role,
+    ADD UNIQUE KEY uq_users_driver_id (driver_id),
+    ADD CONSTRAINT fk_users_driver
+        FOREIGN KEY (driver_id) REFERENCES drivers(id)
+        ON DELETE SET NULL ON UPDATE CASCADE;
 
 CREATE TABLE transports (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,

@@ -5,9 +5,9 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
 <div class="module-toolbar">
     <p>
         <?php if ($user['role'] === 'SUPERADMIN'): ?>
-            Mund të ndryshosh emailin/fjalëkalimin e llogarisë tënde dhe të menaxhosh ADMIN/DISPATCHER. Llogaria jote nuk mund të fshihet; llogaritë e tjera me transporte të lidhura janë të mbrojtura.
+            Mund të ndryshosh llogaritë ADMIN/DISPATCHER/DRIVER dhe të krijosh hyrje për shoferët. Llogaria jote nuk mund të fshihet; llogaritë me transporte të krijuara janë të mbrojtura.
         <?php else: ?>
-            Menaxho emailin, fjalëkalimin dhe llogaritë e dispeçerëve. Llogaritë me transporte të lidhura nuk mund të fshihen.
+            Menaxho emailin/fjalëkalimin e dispeçerëve dhe shoferëve, dhe krijo hyrje për shoferët.
         <?php endif; ?>
     </p>
     <a class="button button-secondary" href="?page=add-admin">Shto administrator</a>
@@ -20,6 +20,43 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
 <?php if ($accountsError !== null): ?>
     <div class="notice notice-error" role="alert"><?= $escape($accountsError) ?></div>
 <?php endif; ?>
+
+<section class="filter-card" aria-labelledby="driver-account-heading">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">APLIKACIONI MOBIL</p>
+            <h2 id="driver-account-heading">Krijo llogari për shofer</h2>
+        </div>
+    </div>
+    <?php if ($availableDrivers === []): ?>
+        <p class="module-toolbar">Nuk ka shoferë aktivë me email të lirë. Shto email te moduli Shoferët dhe provo përsëri.</p>
+    <?php else: ?>
+        <form class="record-form" method="post" action="?page=users">
+            <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
+            <input type="hidden" name="account_action" value="create_driver">
+            <div class="form-field">
+                <label for="driver-account-id">Shoferi</label>
+                <select id="driver-account-id" name="driver_id" required>
+                    <option value="">Zgjidh shoferin</option>
+                    <?php foreach ($availableDrivers as $driver): ?>
+                        <option value="<?= (int) $driver['id'] ?>">
+                            <?= $escape($driver['full_name']) ?> · <?= $escape($driver['email']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="form-field">
+                <label for="driver-account-password">Fjalëkalimi i përkohshëm</label>
+                <input id="driver-account-password" type="password" name="password" minlength="12" maxlength="72" autocomplete="new-password" required>
+            </div>
+            <div class="form-field">
+                <label for="driver-account-confirmation">Përsërit fjalëkalimin</label>
+                <input id="driver-account-confirmation" type="password" name="password_confirmation" minlength="12" maxlength="72" autocomplete="new-password" required>
+            </div>
+            <button class="button button-primary" type="submit">Krijo llogarinë</button>
+        </form>
+    <?php endif; ?>
+</section>
 
 <?php if ($accounts === []): ?>
     <div class="table-card">
@@ -55,6 +92,7 @@ $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, 
                                 <td><?= match ($account['role']) {
                                     'SUPERADMIN' => 'Superadministrator',
                                     'ADMIN' => 'Administrator',
+                                    'DRIVER' => 'Shofer',
                                     default => 'Dispeçer',
                                 } ?></td>
                                 <td>

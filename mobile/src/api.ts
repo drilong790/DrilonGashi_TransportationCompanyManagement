@@ -1,8 +1,9 @@
 import * as SecureStore from 'expo-secure-store';
-import { ApiError, Transport, TransportInput, TransportResources, User } from './types';
+import { ApiError, DashboardSummary, Transport, TransportInput, TransportResources, User } from './types';
 export { ApiError } from './types';
 
 const TOKEN_KEY = 'transport-mobile-token';
+const USER_KEY = 'transport-mobile-user';
 
 export const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? '').trim().replace(/\/+$/, '');
 
@@ -59,20 +60,54 @@ export async function signIn(email: string, password: string): Promise<{ token: 
     { email, password },
   );
   await SecureStore.setItemAsync(TOKEN_KEY, result.data.token);
-  return result.data;
+  const user = normalizeUser(result.data.user);
+  await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+  return { ...result.data, user };
 }
 
 export async function storedToken(): Promise<string | null> {
   return SecureStore.getItemAsync(TOKEN_KEY);
 }
 
+export async function storedUser(): Promise<User | null> {
+  const serialized = await SecureStore.getItemAsync(USER_KEY);
+  if (serialized === null) return null;
+  const parsed: unknown = JSON.parse(serialized);
+  if (!isUser(parsed)) {
+    throw new Error('Profili lokal i llogarisë nuk është i vlefshëm.');
+  }
+  return parsed;
+}
+
 export async function clearToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await Promise.all([
+    SecureStore.deleteItemAsync(TOKEN_KEY),
+    SecureStore.deleteItemAsync(USER_KEY),
+  ]);
 }
 
 export async function currentUser(token: string): Promise<User> {
   const result = await request<{ data: User }>('me', 'GET', token);
+  return normalizeUser(result.data);
+}
+
+export async function loadDashboard(token: string): Promise<DashboardSummary> {
+  const result = await request<{ data: DashboardSummary }>('dashboard', 'GET', token);
   return result.data;
+}
+
+export async function updateDriverStatus(
+  token: string,
+  transportId: number,
+  status: 'IN_PROGRESS' | 'COMPLETED',
+): Promise<Transport> {
+  const result = await request<{ data: Transport }>(
+    'driver-status',
+    'POST',
+    token,
+    { transport_id: transportId, status },
+  );
+  return normalizeTransport(result.data);
 }
 
 export async function signOut(token: string): Promise<void> {
@@ -139,4 +174,22 @@ function normalizeTransport(transport: Transport): Transport {
     driver_id: transport.driver_id === null ? null : Number(transport.driver_id),
     vehicle_id: transport.vehicle_id === null ? null : Number(transport.vehicle_id),
   };
+}
+
+function normalizeUser(user: User): User {
+  return {
+    ...user,
+    id: Number(user.id),
+    driver_id: user.driver_id === null ? null : Number(user.driver_id),
+  };
+}
+
+function isUser(value: unknown): value is User {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const user = value as Record<string, unknown>;
+  return Number.isInteger(user.id)
+    && typeof user.full_name === 'string'
+    && typeof user.email === 'string'
+    && ['SUPERADMIN', 'ADMIN', 'DISPATCHER', 'DRIVER'].includes(String(user.role))
+    && (user.driver_id === null || Number.isInteger(user.driver_id));
 }

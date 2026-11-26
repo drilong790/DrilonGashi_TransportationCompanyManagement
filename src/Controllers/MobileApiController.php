@@ -49,11 +49,22 @@ final class MobileApiController
             }
 
             if ($action === 'resources' && $method === 'GET') {
+                if ($user['role'] === 'DRIVER') {
+                    self::respond(403, ['error' => 'Shoferët nuk mund të përdorin burimet e menaxhimit.']);
+                }
                 self::resources($pdo);
             }
 
             if ($action === 'transports' && $method === 'GET') {
-                self::transports($pdo);
+                self::transports($pdo, $user);
+            }
+
+            if ($action === 'dashboard' && $method === 'GET') {
+                self::dashboard($pdo, $user);
+            }
+
+            if ($action === 'driver-status' && $method === 'POST') {
+                self::updateDriverStatus($pdo, $user);
             }
 
             if ($action === 'transport' && $method === 'GET') {
@@ -61,7 +72,7 @@ final class MobileApiController
                 if ($id === null) {
                     self::respond(422, ['error' => 'ID e transportit nuk është e vlefshme.']);
                 }
-                $transport = self::transportById($pdo, $id);
+                $transport = self::transportById($pdo, $id, $user);
                 self::respond($transport === null ? 404 : 200, $transport === null
                     ? ['error' => 'Transporti nuk u gjet.']
                     : ['data' => $transport]);
@@ -90,7 +101,7 @@ final class MobileApiController
             self::respond(422, ['error' => 'Shkruaj email-in dhe fjalëkalimin.']);
         }
 
-        $user = Authentication::attempt($pdo, trim($email), $password);
+        $user = Authentication::attemptMobile($pdo, trim($email), $password);
         if ($user === null) {
             self::respond(401, ['error' => 'Email-i ose fjalëkalimi nuk është i saktë.']);
         }
@@ -133,7 +144,64 @@ final class MobileApiController
         ]);
     }
 
-    private static function transports(PDO $pdo): void
+    private static function dashboard(PDO $pdo, array $user): void
+    {
+        $driverOnly = $user['role'] === 'DRIVER';
+        $where = $driverOnly ? ' WHERE driver_id = :driver_id' : '';
+        $parameters = $driverOnly ? ['driver_id' => (int) $user['driver_id']] : [];
+        $statement = $pdo->prepare(
+            "SELECT
+                COUNT(*) AS total,
+                SUM(status = 'PLANNED') AS planned,
+                SUM(status = 'IN_PROGRESS') AS in_progress,
+                SUM(status = 'COMPLETED') AS completed,
+                SUM(status = 'CANCELLED') AS cancelled,
+                SUM(DATE(scheduled_date) = CURRENT_DATE AND status <> 'CANCELLED') AS today
+            FROM transports{$where}"
+        );
+        $statement->execute($parameters);
+        $counts = $statement->fetch();
+        foreach (['total', 'planned', 'in_progress', 'completed', 'cancelled', 'today'] as $field) {
+            $counts[$field] = (int) ($counts[$field] ?? 0);
+        }
+        self::respond(200, ['data' => $counts]);
+    }
+
+    private static function updateDriverStatus(PDO $pdo, array $user): void
+    {
+        if ($user['role'] !== 'DRIVER' || $user['driver_id'] === null) {
+            self::respond(403, ['error' => 'Vetëm shoferi i caktuar mund të ndryshojë statusin.']);
+        }
+
+        $body = self::jsonBody();
+        $id = self::positiveId($body['transport_id'] ?? null);
+        $status = $body['status'] ?? null;
+        if ($id === null || !is_string($status) || !in_array($status, ['IN_PROGRESS', 'COMPLETED'], true)) {
+            self::respond(422, ['error' => 'Transporti ose statusi nuk është i vlefshëm.']);
+        }
+        $previousStatus = $status === 'IN_PROGRESS' ? 'PLANNED' : 'IN_PROGRESS';
+        $statement = $pdo->prepare(
+            'UPDATE transports
+            SET status = :status
+            WHERE id = :id AND driver_id = :driver_id AND status = :previous_status'
+        );
+        $statement->execute([
+            'status' => $status,
+            'id' => $id,
+            'driver_id' => (int) $user['driver_id'],
+            'previous_status' => $previousStatus,
+        ]);
+        if ($statement->rowCount() !== 1) {
+            $transport = self::transportById($pdo, $id, $user);
+            if ($transport === null) {
+                self::respond(404, ['error' => 'Transporti nuk u gjet ose nuk të është caktuar.']);
+            }
+            self::respond(409, ['error' => 'Statusi i transportit ka ndryshuar. Rifresko listën dhe provo përsëri.']);
+        }
+        self::respond(200, ['data' => self::transportById($pdo, $id, $user)]);
+    }
+
+    private static function transports(PDO $pdo, array $user): void
     {
         $filters = [];
         foreach (['search', 'status', 'date_from', 'date_to', 'customer_id', 'driver_id'] as $name) {
@@ -164,6 +232,13 @@ final class MobileApiController
 
         $where = [];
         $parameters = [];
+        if ($user['role'] === 'DRIVER') {
+            if ($user['driver_id'] === null) {
+                self::respond(403, ['error' => 'Llogaria nuk është e lidhur me një shofer.']);
+            }
+            $where[] = 't.driver_id = :session_driver_id';
+            $parameters['session_driver_id'] = (int) $user['driver_id'];
+        }
         if ($filters['search'] !== '') {
             $where[] = '(c.company_name LIKE :search_customer OR t.pickup_address LIKE :search_pickup '
                 . 'OR t.destination_address LIKE :search_destination OR t.cargo_description LIKE :search_cargo '
@@ -412,8 +487,11 @@ final class MobileApiController
         return $errors;
     }
 
-    private static function transportById(PDO $pdo, int $id): ?array
+    private static function transportById(PDO $pdo, int $id, ?array $user = null): ?array
     {
+        $driverFilter = $user !== null && $user['role'] === 'DRIVER'
+            ? ' AND t.driver_id = :driver_id'
+            : '';
         $statement = $pdo->prepare(
             'SELECT t.id, t.customer_id, c.company_name AS customer_name, t.driver_id,
                 d.full_name AS driver_name, t.vehicle_id, v.plate_number AS vehicle_plate,
@@ -424,9 +502,13 @@ final class MobileApiController
             LEFT JOIN drivers d ON d.id = t.driver_id
             LEFT JOIN vehicles v ON v.id = t.vehicle_id
             JOIN users u ON u.id = t.created_by
-            WHERE t.id = :id LIMIT 1'
+            WHERE t.id = :id' . $driverFilter . ' LIMIT 1'
         );
-        $statement->execute(['id' => $id]);
+        $parameters = ['id' => $id];
+        if ($driverFilter !== '') {
+            $parameters['driver_id'] = (int) $user['driver_id'];
+        }
+        $statement->execute($parameters);
         $transport = $statement->fetch();
         return $transport === false ? null : $transport;
     }
@@ -434,12 +516,14 @@ final class MobileApiController
     private static function userForToken(PDO $pdo, string $token): ?array
     {
         $statement = $pdo->prepare(
-            "SELECT u.id, u.full_name, u.email, u.role, t.token_hash
+            "SELECT u.id, u.full_name, u.email, u.role, u.driver_id, t.token_hash
             FROM mobile_api_tokens t
             JOIN users u ON u.id = t.user_id
+            LEFT JOIN drivers d ON d.id = u.driver_id
             WHERE t.token_hash = :token_hash AND t.expires_at > CURRENT_TIMESTAMP
                 AND u.is_active = 1 AND u.email_verified_at IS NOT NULL
-                AND u.role IN ('SUPERADMIN', 'ADMIN', 'DISPATCHER')
+                AND u.role IN ('SUPERADMIN', 'ADMIN', 'DISPATCHER', 'DRIVER')
+                AND (u.role <> 'DRIVER' OR (u.driver_id IS NOT NULL AND d.is_active = 1))
             LIMIT 1"
         );
         $statement->execute(['token_hash' => hash('sha256', $token)]);

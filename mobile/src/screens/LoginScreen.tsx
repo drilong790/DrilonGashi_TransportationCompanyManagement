@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { apiBaseUrl } from '../api';
+import { colors } from '../theme';
 
 export function LoginScreen({
   onLogin,
@@ -85,7 +86,7 @@ export function LoginScreen({
           ]}
         >
           {loading
-            ? <ActivityIndicator color="#fff" />
+            ? <ActivityIndicator color="#17212a" />
             : <Text style={styles.buttonText}>Hyr në aplikacion</Text>}
         </Pressable>
       </View>
@@ -95,57 +96,59 @@ export function LoginScreen({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  container: { backgroundColor: colors.background, flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
   brand: { alignItems: 'center', marginBottom: 28 },
   mark: {
     alignItems: 'center',
-    backgroundColor: '#078b81',
-    borderRadius: 18,
+    backgroundColor: `${colors.amber}18`,
+    borderColor: `${colors.amber}45`,
+    borderRadius: 17,
+    borderWidth: 1,
     height: 56,
     justifyContent: 'center',
     marginBottom: 12,
     width: 56,
   },
-  markText: { color: '#fff', fontSize: 28, fontWeight: '900' },
-  brandName: { color: '#15263b', fontSize: 18, fontWeight: '900', letterSpacing: 2 },
-  brandCaption: { color: '#7b8998', fontSize: 13, marginTop: 4 },
+  markText: { color: colors.amberLight, fontSize: 28, fontWeight: '900' },
+  brandName: { color: colors.text, fontSize: 18, fontWeight: '900', letterSpacing: 2 },
+  brandCaption: { color: colors.textMuted, fontSize: 13, marginTop: 4 },
   card: {
-    backgroundColor: '#fff',
-    borderColor: '#e5ebf0',
-    borderRadius: 22,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 20,
     borderWidth: 1,
     elevation: 3,
     padding: 22,
-    shadowColor: '#17314c',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.22,
     shadowRadius: 18,
   },
-  title: { color: '#15263b', fontSize: 24, fontWeight: '800' },
-  subtitle: { color: '#738195', fontSize: 14, lineHeight: 21, marginBottom: 18, marginTop: 7 },
-  label: { color: '#304258', fontSize: 13, fontWeight: '700', marginBottom: 7, marginTop: 12 },
+  title: { color: colors.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
+  subtitle: { color: colors.textMuted, fontSize: 14, lineHeight: 21, marginBottom: 18, marginTop: 7 },
+  label: { color: '#c3c9c7', fontSize: 13, fontWeight: '700', marginBottom: 7, marginTop: 12 },
   input: {
-    backgroundColor: '#fbfcfd',
-    borderColor: '#dce4ec',
-    borderRadius: 12,
+    backgroundColor: '#07121b',
+    borderColor: '#ffffff22',
+    borderRadius: 10,
     borderWidth: 1,
-    color: '#15263b',
+    color: colors.text,
     fontSize: 15,
     minHeight: 50,
     paddingHorizontal: 14,
   },
   button: {
     alignItems: 'center',
-    backgroundColor: '#078b81',
-    borderRadius: 12,
+    backgroundColor: colors.amber,
+    borderRadius: 10,
     justifyContent: 'center',
     marginTop: 20,
     minHeight: 50,
   },
-  buttonDisabled: { backgroundColor: '#92b8b4' },
+  buttonDisabled: { backgroundColor: '#8b704e' },
   buttonPressed: { opacity: 0.85 },
-  buttonText: { color: '#fff', fontSize: 15, fontWeight: '800' },
-  error: { color: '#b83434', fontSize: 13, lineHeight: 19, marginTop: 12 },
-  configError: { color: '#a76a15', fontSize: 13, lineHeight: 19, marginTop: 12 },
-  footer: { color: '#91a0b0', fontSize: 12, marginTop: 22, textAlign: 'center' },
+  buttonText: { color: '#17212a', fontSize: 15, fontWeight: '800' },
+  error: { color: colors.danger, fontSize: 13, lineHeight: 19, marginTop: 12 },
+  configError: { color: colors.amberLight, fontSize: 13, lineHeight: 19, marginTop: 12 },
+  footer: { color: '#74838a', fontSize: 12, marginTop: 22, textAlign: 'center' },
 });
